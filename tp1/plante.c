@@ -1,5 +1,5 @@
 int main() {
-    int * pointeur = NULL;
+    int * pointeur = 0;
     int value = *pointeur;
     return 0;
 }
