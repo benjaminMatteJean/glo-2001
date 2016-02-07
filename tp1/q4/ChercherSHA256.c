@@ -30,16 +30,9 @@ void * search(void * args ) {
 	size_t longueur = 0;
 	ssize_t read;
 	unsigned char sha256sum[32];
-	long positionFin;
 
 	/* Ouverture du dictionnaire */
 	pFichier = fopen("mots.txt","r");
-
-	/* On va chercher la ligne de fin donné par endOffset */
-	if (fseek(pFichier, params->endOffset, SEEK_SET) != 0) {
-		printf("Problème lors du déplacement dans le fichier.\n");
-	}
-	positionFin = ftell(pFichier);
 
 	if (fseek(pFichier, params->startOffset, SEEK_SET) != 0) {
 		printf("Problème lors du déplacement dans le fichier.\n");
@@ -52,7 +45,7 @@ void * search(void * args ) {
 
 	pLigne = (char *)malloc(longueur);
 
-	while ((read = getline(&pLigne, &longueur, pFichier)) != -1 && flag != 1 && ftell(pFichier) <= positionFin) {
+	while ((read = getline(&pLigne, &longueur, pFichier)) != -1 && flag != 1 && ftell(pFichier) <= params->endOffset) {
 		/* On enleve le retour de chariot '\n' a la fin */
 		if (pLigne[read-1] == '\n') pLigne[read-1] = '\0';
 
@@ -69,10 +62,10 @@ void * search(void * args ) {
 	    int Match = 1;
 	    int j = 0;
 	    for (j = 0; j < 32; j++ ) {
-  			if (sha256sum[j]!=params->target[j]) {
-  				Match = 0;
-  				break;
-  			}
+			if (sha256sum[j]!=params->target[j]) {
+				Match = 0;
+				break;
+			}
 	    }
 
 	    if (Match) {
