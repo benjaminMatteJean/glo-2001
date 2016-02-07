@@ -69,10 +69,10 @@ void * search(void * args ) {
 	    int Match = 1;
 	    int j = 0;
 	    for (j = 0; j < 32; j++ ) {
-			if (sha256sum[j]!=params->target[j]) {
-				Match = 0;
-				break;
-			}
+  			if (sha256sum[j]!=params->target[j]) {
+  				Match = 0;
+  				break;
+  			}
 	    }
 
 	    if (Match) {
