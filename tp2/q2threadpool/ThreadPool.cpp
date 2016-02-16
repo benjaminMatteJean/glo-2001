@@ -11,7 +11,7 @@ typedef struct {
 	ThreadPool *pThreadPool; // pointeur sur l'objet ThreadPool
 	int ThreadNum; // Numéro du thread, de 0 à n
 } threadArg;
-   
+
 void *Thunk(void *arg) {
 	threadArg *pThreadArg = (threadArg *)arg;
 	ThreadPool *pThreadPool;
@@ -28,10 +28,16 @@ void *Thunk(void *arg) {
  jamais de phtread_cond_wait(). */
 ThreadPool::ThreadPool(unsigned int nThread) {
 	// Cette fonction n'est pas complète! Il vous faut la terminer!
-	// Initialisation des membres 
-	
-	// Initialisation du mutex et des variables de conditions.
+	// Initialisation des membres
+	PoolDoitTerminer = false;
+	nThreadActive = nThread;
+	bufferValide = true;
+	buffer = 0;
 
+	// Initialisation du mutex et des variables de conditions.
+	pthread_mutex_init(&mutex, NULL);
+	pthread_cond_init(&CondThreadRienAFaire,0);
+	pthread_cond_init(&CondProducteur,0);
 
 	// Création des threads. Je vous le donne gratuit, car c'est un peu plus compliqué que vu en classe.
 	pTableauThread        = new pthread_t[nThread];
@@ -49,10 +55,14 @@ ThreadPool::ThreadPool(unsigned int nThread) {
     }
 }
 
-/* Destructeur ThreadPool::~ThreadPool() 
+/* Destructeur ThreadPool::~ThreadPool()
    Ce destructeur doit détruire les mutex et variables de conditions. */
 ThreadPool::~ThreadPool() {
 	// À compléter
+	pthread_mutex_destroy(&mutex);
+	pthread_cond_destroy(&CondProducteur);
+	pthread_cond_destroy(&CondThreadRienAFaire);
+	delete [] pTableauThread;
 }
 
 /* void ThreadPool::MyThreadRoutine(int myID)
@@ -64,6 +74,34 @@ ThreadPool::~ThreadPool() {
    */
 void ThreadPool::MyThreadRoutine(int myID) {
 	// À compléter
+	printf("Thread %d commence!\n", myID);
+
+	while (!PoolDoitTerminer) {
+		pthread_mutex_lock(&mutex);
+
+		if (!bufferValide) {
+			pthread_cond_wait(&CondThreadRienAFaire,&mutex);
+		}
+
+		if(!PoolDoitTerminer) {
+			printf("Thread %d récupère l'item %d!\n",myID,buffer);
+
+			int currentBuffer = buffer;
+			bufferValide = false;
+
+			pthread_cond_signal(&CondProducteur);
+			pthread_cond_signal(&CondThreadRienAFaire);
+
+			pthread_mutex_unlock(&mutex);
+
+			printf("Thread %d va dormir %d sec.\n",myID,currentBuffer);
+
+			sleep(currentBuffer);
+		}
+	}
+
+	printf("############ Thread %d termine!################\n",myID);
+
 }
 
 /* void ThreadPool::Inserer(unsigned int newItem)
@@ -72,14 +110,37 @@ void ThreadPool::MyThreadRoutine(int myID) {
    sur une variable de condition. */
 void ThreadPool::Inserer(unsigned int newItem) {
 	// À compléter
+	pthread_mutex_lock(&mutex);
+
+	if (bufferValide) {
+		pthread_cond_wait(&CondProducteur,&mutex);
+	}
+
+	bufferValide = true;
+	buffer = newItem;
+	pthread_cond_signal(&CondThreadRienAFaire);
+	pthread_mutex_unlock(&mutex);
 }
 
-/* void ThreadPool::Quitter() 
+/* void ThreadPool::Quitter()
    Cette fonction est appelée uniquement par le producteur, pour indiquer au thread pool qu’il n’y
    aura plus de nouveaux items qui seront produits. Il faudra alors que tous les threads terminent
    de manière gracieuse. Cette fonction doit bloquer jusqu’à ce que tous ces threads MyThreadRoutine
    terminent, incluant ceux qui étaient bloqués sur une variable de condition. */
 void ThreadPool::Quitter() {
 	// À compléter
-}
+	pthread_mutex_lock(&mutex);
 
+	while (bufferValide) {
+		pthread_cond_wait(&CondThreadRienAFaire,&mutex);
+	}
+
+	PoolDoitTerminer = true;
+	pthread_cond_broadcast(&CondThreadRienAFaire);
+	pthread_mutex_unlock(&mutex);
+
+
+	for (int i = 0; i < nThreadActive; i++) {
+		 pthread_join(pTableauThread[i],NULL);
+	}
+}

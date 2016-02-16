@@ -52,6 +52,5 @@ int main(int argc, char *argv[]) {
 	printf("(%ld.%03d) main: FIN!\n",
 		        actualTime.time-StartTime.time,actualTime.millitm);
 	// Le programme peut maintenant se terminer
-  	exit(NULL);
+  	return 0;
 }
-
