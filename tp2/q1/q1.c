@@ -17,6 +17,7 @@ void *changePriority(void * args) {
    int priority = params->priority;
    int threadID = syscall(SYS_gettid);
    int ret = setpriority(PRIO_PROCESS, threadID, priority);
+   printf("Thread %d avec la priority %d \n",threadID,priority);
    printf("setpriority():%d\n", ret);
    printf("errno: %d\n",errno);
    while (1);
@@ -27,14 +28,11 @@ int main(int argc, char const *argv[]) {
   const int NB_THREADS = 5;
   pthread_t threads[NB_THREADS];
   Params params[NB_THREADS];
-  if(argc < 2) {
-    fprintf(stderr, "No! No! No! Il te manque un paramètre");
-    exit(1);
-  }
   int i;
+  
   for (i = 0; i < NB_THREADS; i++) {
     printf("main(): Création du thread %d\n",i);
-    int valeur = atoi(argv[i]);
+    int valeur = atoi(argv[i+1]);
     params[i].priority = valeur;
 
     int status = pthread_create(&threads[i], NULL, changePriority, (void *)&params[i]);
