@@ -77,14 +77,28 @@ void IdleThreadFunction(void *arg) {
                                    T h r e a d I n i t
    ******************************************************************************************/
 int ThreadInit(void){
-		printf("\n  ******************************** ThreadInit()  ******************************** \n");
+	printf("\n  ******************************** ThreadInit()  ******************************** \n");
+	gpWaitTimerList->pNext = 0;
+	gpWaitTimerList->pThreadWaiting = 0;
+
+	// THREAD IDLE
     ThreadCreer(*IdleThreadFunction, 0);
+
+	// THREAD MAIN
     TCB *tcb_main = (TCB *) malloc(sizeof(TCB));
     tcb_main->id = gNextThreadIDToAllocate;
-    tcb_main->etat = THREAD_PRET;
-    gNextThreadIDToAllocate++;
-    gNumberOfThreadInCircularBuffer++;
-		gpThreadCourant = tcb_main;
+	gNextThreadIDToAllocate++;
+	gThreadTable[tcb_main->id] = tcb_main;
+
+	// AJOUT DANS LE BUFFER CIRCULAIRE
+	tcb_main->pSuivant = gpThreadCourant;
+	tcb_main->pSuivant->pPrecedant = tcb_main;
+	tcb_main->pPrecedant = gThreadTable[0];
+	tcb_main->pPrecedant->pSuivant = tcb_main;
+	gNumberOfThreadInCircularBuffer++;
+
+	tcb_main->etat = THREAD_PRET;
+	gpThreadCourant = tcb_main;
     return tcb_main->id;
 }
 
@@ -94,21 +108,32 @@ int ThreadInit(void){
    ******************************************************************************************/
 tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
 	printf("\n  ******************************** ThreadCreer(%p,%p) ******************************** \n",pFuncThread,arg);
+	// CREATION DU THREAD
 	TCB *tcb_nouveau = (TCB *) malloc(sizeof(TCB));
 	tcb_nouveau->id = gNextThreadIDToAllocate;
+	gNextThreadIDToAllocate++;
+	gThreadTable[tcb_nouveau->id] = tcb_nouveau;
 	tcb_nouveau->pWaitListJoinedThreads = NULL;
 	getcontext(&tcb_nouveau->ctx);
 	char *pile = malloc(TAILLE_PILE);
 	tcb_nouveau->ctx.uc_stack.ss_sp = pile;
 	tcb_nouveau->ctx.uc_stack.ss_size = TAILLE_PILE;
 	makecontext(&tcb_nouveau->ctx, (void *) pFuncThread, 1, arg);
-	tcb_nouveau->etat = THREAD_PRET;
-	gNextThreadIDToAllocate++;
+
+	// AJOUT DANS LE BUFFER CIRCULAIRE
+	if (tcb_nouveau->id == (tid)0) {
+		tcb_nouveau->pPrecedant = NULL;
+		tcb_nouveau->pSuivant = NULL;
+	} else {
+		tcb_nouveau->pSuivant = gpThreadCourant;
+		tcb_nouveau->pSuivant->pPrecedant = tcb_nouveau;
+		tcb_nouveau->pPrecedant = gThreadTable[0];
+		tcb_nouveau->pPrecedant->pSuivant = tcb_nouveau;
+	}
 	gNumberOfThreadInCircularBuffer++;
-	tcb_nouveau->pPrecedant = gpThreadCourant;
-	tcb_nouveau->pSuivant = gpThreadCourant;
+
+	tcb_nouveau->etat = THREAD_PRET;
 	gpThreadCourant = tcb_nouveau;
-	gThreadTable[gpThreadCourant->id] = tcb_nouveau;
 	return gpThreadCourant->id;
 }
 
@@ -117,19 +142,16 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
    ******************************************************************************************/
 void ThreadCeder(void){
 	printf("\n  ******************************** ThreadCeder()  ******************************** \n");
-	// Déclaration des variables.
-	TCB *pThreadCourantAncien = gpThreadCourant;
-	TCB *pThreadCourantNouveau = gpNextToExecuteInCircularBuffer;
-	TCB *pThread = gpThreadCourant;
-	char etat;
-	int i;
+	while(gpWaitTimerList->pThreadWaiting) {
+		if (gpWaitTimerList->pThreadWaiting->WakeupTime <= time()) {
 
-	// On liste les thread
-	printf("ThreadCeder():\n");
+		}
+	}
 
 	// On parcours tous les threads
 	for (i = 0; i < gNumberOfThreadInCircularBuffer; i++) {
-		// Vérifie l'état du thread
+
+
 		switch (pThread->etat) {
 			case THREAD_EXECUTE:
 				etat = 'E';
