@@ -77,14 +77,14 @@ void IdleThreadFunction(void *arg) {
                                    T h r e a d I n i t
    ******************************************************************************************/
 int ThreadInit(void){
-	printf("\n  ******************************** ThreadInit()  ******************************** \n");
+		printf("\n  ******************************** ThreadInit()  ******************************** \n");
     ThreadCreer(*IdleThreadFunction, 0);
     TCB *tcb_main = (TCB *) malloc(sizeof(TCB));
     tcb_main->id = gNextThreadIDToAllocate;
     tcb_main->etat = THREAD_PRET;
     gNextThreadIDToAllocate++;
     gNumberOfThreadInCircularBuffer++;
-	gpThreadCourant = tcb_main;
+		gpThreadCourant = tcb_main;
     return tcb_main->id;
 }
 
@@ -108,7 +108,7 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
 	tcb_nouveau->pPrecedant = gpThreadCourant;
 	tcb_nouveau->pSuivant = gpThreadCourant;
 	gpThreadCourant = tcb_nouveau;
-	
+
 	return gpThreadCourant->id;
 }
 
