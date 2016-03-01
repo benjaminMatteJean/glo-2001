@@ -78,8 +78,14 @@ void IdleThreadFunction(void *arg) {
    ******************************************************************************************/
 int ThreadInit(void){
 	printf("\n  ******************************** ThreadInit()  ******************************** \n");
-    TCB *p_TCB = (TCB *) malloc(sizeof(TCB));
-    return 0;
+    ThreadCreer(*IdleThreadFunction, 0);
+    TCB *tcb_main = (TCB *) malloc(sizeof(TCB));
+    tcb_main->id = gNextThreadIDToAllocate;
+    tcb_main->etat = THREAD_PRET;
+    gNextThreadIDToAllocate++;
+    gNumberOfThreadInCircularBuffer++;
+	gpThreadCourant = tcb_main;
+    return tcb_main->id;
 }
 
 
@@ -88,7 +94,22 @@ int ThreadInit(void){
    ******************************************************************************************/
 tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
 	printf("\n  ******************************** ThreadCreer(%p,%p) ******************************** \n",pFuncThread,arg);
-	return (tid) 0;
+	TCB *tcb_nouveau = (TCB *) malloc(sizeof(TCB));
+	tcb_nouveau->id = gNextThreadIDToAllocate;
+	tcb_nouveau->pWaitListJoinedThreads = NULL;
+	getcontext(&tcb_nouveau->ctx);
+	char *pile = malloc(TAILLE_PILE);
+	tcb_nouveau->ctx.uc_stack.ss_sp = pile;
+	tcb_nouveau->ctx.uc_stack.ss_size = TAILLE_PILE;
+	makecontext(&tcb_nouveau->ctx, (void *) pFuncThread, 1, arg);
+	tcb_nouveau->etat = THREAD_PRET;
+	gNextThreadIDToAllocate++;
+	gNumberOfThreadInCircularBuffer++;
+	tcb_nouveau->pPrecedant = gpThreadCourant;
+	tcb_nouveau->pSuivant = gpThreadCourant;
+	gpThreadCourant = tcb_nouveau;
+	
+	return gpThreadCourant->id;
 }
 
 /* ******************************************************************************************
@@ -96,6 +117,7 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
    ******************************************************************************************/
 void ThreadCeder(void){
 	printf("\n  ******************************** ThreadCeder()  ******************************** \n");
+
 }
 
 
@@ -135,4 +157,3 @@ tid ThreadId(void) {
 void ThreadDormir(int secondes) {
 	printf("\n  ******************************** ThreadDormir(%d)  ******************************** \n",secondes);
 }
-
