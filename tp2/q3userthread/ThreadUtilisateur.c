@@ -117,7 +117,54 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
    ******************************************************************************************/
 void ThreadCeder(void){
 	printf("\n  ******************************** ThreadCeder()  ******************************** \n");
+	// Déclaration des variables.
+	TCB *pThreadCourantAncien = gpThreadCourant;
+	TCB *pThreadCourantNouveau = gpNextToExecuteInCircularBuffer;
+	TCB *pThread = gpThreadCourant;
+	char etat;
+	int i;
 
+	// On liste les thread
+	printf("ThreadCeder():\n");
+
+	// On parcours tous les threads
+	for (i = 0; i < gNumberOfThreadInCircularBuffer; i++) {
+		// Vérifie l'état du thread
+		switch (pThread->etat) {
+			case THREAD_EXECUTE:
+				etat = 'E';
+				break;
+			case THREAD_PRET:
+				etat = 'P';
+				break;
+			case THREAD_BLOQUE:
+				etat = 'B';
+				break;
+			case THREAD_TERMINE:
+				etat = 'T';
+				break;
+		}
+
+		// Affichage de l'état du thread
+		printf("ThreadID:%d État:%c\n", pThread->id, etat);
+
+		// Si on a pas trouvé le prochain thread
+		if (pThreadCourantNouveau->id ==  pThreadCourantAncien->id && pThread->etat == THREAD_PRET) {
+			// On met le nouvel état et le thread courant
+			pThreadCourantNouveau = pThread;
+			if (pThreadCourantAncien->etat == THREAD_EXECUTE) {
+				pThreadCourantAncien->etat = THREAD_PRET;
+			}
+			pThreadCourantNouveau->etat = THREAD_EXECUTE;
+			gpThreadCourant = pThreadCourantNouveau;
+		}
+
+		// On prend le prochain thread pour l'autre itération
+		pThread = pThread->pSuivant;
+	}
+
+	// On change le contexte
+	swapcontext(&pThreadCourantAncien->ctx, &pThreadCourantNouveau->ctx);
 }
 
 
@@ -126,8 +173,26 @@ void ThreadCeder(void){
    ******************************************************************************************/
 int ThreadJoindre(tid ThreadID){
 	printf("\n  ******************************** ThreadJoindre(%d)  ******************************* \n",ThreadID);
+	// Récupération des threads et vérifications
+	TCB *pThread = gThreadTable[ThreadID];
+	if (pThread == NULL) {
+		return -1;
+	} else if (pThread->etat == THREAD_TERMINE) {
+		return -2;
+	}
 
-	return 0;
+	// On crée l'élément de la waitList
+	gpThreadCourant->etat = THREAD_BLOQUE;
+	WaitList *waitList = (struct WaitList *)malloc(sizeof(struct WaitList));
+	waitList->pThreadWaiting = gpThreadCourant;
+	waitList->pNext = pThread->pWaitListJoinedThreads;
+	pThread->pWaitListJoinedThreads = waitList;
+
+	// On continue dans l'ordonnanceur
+	ThreadCeder();
+
+	// On retourne 1, car tout a fonctionné
+	return 1;
 }
 
 
@@ -136,7 +201,17 @@ int ThreadJoindre(tid ThreadID){
    ******************************************************************************************/
 void ThreadQuitter(void){
 	printf("  ******************************** ThreadQuitter(%d)  ******************************** \n",gpThreadCourant->id);
+	// On définit le thread comme terminé
+	gpThreadCourant->etat = THREAD_TERMINE;
 
+	// Réveille les threads joints
+	WaitList *waitList = gpThreadCourant->pWaitListJoinedThreads;
+	while (waitList != NULL) {
+		waitList->pThreadWaiting->etat = THREAD_PRET;
+		waitList = waitList->pNext;
+	}
+
+	// On continue dans l'ordonnanceur
 	// On passe au thread suivant
 	ThreadCeder();
 	printf(" ThreadQuitter:Je ne devrais jamais m'exectuer! Si je m'exécute, vous avez un bug!\n");
