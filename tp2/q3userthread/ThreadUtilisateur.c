@@ -1,8 +1,8 @@
 /**************************************************************************
     Travail pratique No 2 : Thread utilisateurs
-    
+
     Ce fichier est votre implémentation de la librarie des threads utilisateurs.
-         
+
 	Systemes d'explotation GLO-2001
 	Universite Laval, Quebec, Qc, Canada.
 	(c) 2016 Philippe Giguere
@@ -19,7 +19,7 @@
 
 /* Définitions privées, donc pas dans le .h, car l'utilisateur n'a pas besoin de
    savoir ces détails d'implémentation. OBLIGATOIRE. */
-typedef enum { 
+typedef enum {
 	THREAD_EXECUTE=0,
 	THREAD_PRET,
 	THREAD_BLOQUE,
@@ -53,10 +53,10 @@ static TCB *gpThreadCourant = NULL;	 // Thread en cours d'execution
 static TCB *gpNextToExecuteInCircularBuffer = NULL;
 static int gNumberOfThreadInCircularBuffer = 0;
 static int gNextThreadIDToAllocate = 0;
-static WaitList *gpWaitTimerList = NULL; 
+static WaitList *gpWaitTimerList = NULL;
 static TCB *gThreadTable[MAX_THREADS]; // Utilisé par la fonction ThreadID()
 
-/* Cette fonction ne fait rien d'autre que de spinner un tour et céder sa place. C'est l'équivalent 
+/* Cette fonction ne fait rien d'autre que de spinner un tour et céder sa place. C'est l'équivalent
    pour un système de se tourner les pouces. */
 void IdleThreadFunction(void *arg) {
 	struct timespec SleepTime, TimeRemaining;
@@ -66,24 +66,24 @@ void IdleThreadFunction(void *arg) {
 		printf("                #########  Idle Thread 0 s'exécute et va prendre une pose de 250 ms... #######\n");
 		/* On va dormir un peu, pour ne pas surcharger inutilement le processus/l'affichage. Dans un
 		   vrai système d'exploitation, s'il n'y a pas d'autres threads d'actifs, ce thread demanderait au
-		   CPU de faire une pause, car il n'y a rien à faire. */ 		
+		   CPU de faire une pause, car il n'y a rien à faire. */
 	    nanosleep(&SleepTime,&TimeRemaining); // nanosleep interfere moins avec les alarmes.
 		ThreadCeder();
 	}
 }
 
 
-/* ****************************************************************************************** 
+/* ******************************************************************************************
                                    T h r e a d I n i t
    ******************************************************************************************/
 int ThreadInit(void){
 	printf("\n  ******************************** ThreadInit()  ******************************** \n");
-
+    TCB *p_TCB = (TCB *) malloc(sizeof(TCB));
     return 0;
 }
 
 
-/* ****************************************************************************************** 
+/* ******************************************************************************************
                                    T h r e a d C r e e r
    ******************************************************************************************/
 tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
@@ -91,7 +91,7 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
 	return (tid) 0;
 }
 
-/* ****************************************************************************************** 
+/* ******************************************************************************************
                                    T h r e a d C e d e r
    ******************************************************************************************/
 void ThreadCeder(void){
@@ -99,7 +99,7 @@ void ThreadCeder(void){
 }
 
 
-/* ****************************************************************************************** 
+/* ******************************************************************************************
                                    T h r e a d J o i n d r e
    ******************************************************************************************/
 int ThreadJoindre(tid ThreadID){
@@ -109,7 +109,7 @@ int ThreadJoindre(tid ThreadID){
 }
 
 
-/* ****************************************************************************************** 
+/* ******************************************************************************************
                                    T h r e a d Q u i t t e r
    ******************************************************************************************/
 void ThreadQuitter(void){
@@ -121,7 +121,7 @@ void ThreadQuitter(void){
 	return;
 }
 
-/* ****************************************************************************************** 
+/* ******************************************************************************************
                                    T h r e a d I d
    ******************************************************************************************/
 tid ThreadId(void) {
@@ -129,7 +129,7 @@ tid ThreadId(void) {
 	return gpThreadCourant->id;
 }
 
-/* ****************************************************************************************** 
+/* ******************************************************************************************
                                    T h r e a d D o r m i r
    ******************************************************************************************/
 void ThreadDormir(int secondes) {
