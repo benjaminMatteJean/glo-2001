@@ -108,7 +108,7 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
 	tcb_nouveau->pPrecedant = gpThreadCourant;
 	tcb_nouveau->pSuivant = gpThreadCourant;
 	gpThreadCourant = tcb_nouveau;
-	
+	gThreadTable[gpThreadCourant->id] = tcb_nouveau;
 	return gpThreadCourant->id;
 }
 
@@ -117,7 +117,7 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
    ******************************************************************************************/
 void ThreadCeder(void){
 	printf("\n  ******************************** ThreadCeder()  ******************************** \n");
-
+	
 }
 
 
