@@ -99,7 +99,8 @@ int ThreadInit(void){
 
 	tcb_main->etat = THREAD_PRET;
 	gpThreadCourant = tcb_main;
-    return tcb_main->id;
+
+	return tcb_main->id;
 }
 
 
@@ -115,7 +116,13 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
 	gThreadTable[tcb_nouveau->id] = tcb_nouveau;
 	tcb_nouveau->pWaitListJoinedThreads = NULL;
 	getcontext(&tcb_nouveau->ctx);
+
 	char *pile = malloc(TAILLE_PILE);
+
+	if (pile == NULL) {
+		return -1;
+	}
+
 	tcb_nouveau->ctx.uc_stack.ss_sp = pile;
 	tcb_nouveau->ctx.uc_stack.ss_size = TAILLE_PILE;
 	makecontext(&tcb_nouveau->ctx, (void *) pFuncThread, 1, arg);
@@ -142,15 +149,37 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
    ******************************************************************************************/
 void ThreadCeder(void){
 	printf("\n  ******************************** ThreadCeder()  ******************************** \n");
+
+	WaitList precedant = NULL;
+	WaitList courant = NULL;
+
 	while(gpWaitTimerList->pThreadWaiting) {
-		if (gpWaitTimerList->pThreadWaiting->WakeupTime <= time()) {
+		courant = gpWaitTimerList;
+		if (courant->pThreadWaiting->WakeupTime <= time()) {
+				// Retirer de cette liste
+				if(precedant != NULL) {
+					precedant->pNext = courant->pNext;
+				}
+
+				// Changer son état
+				TCB * thread - courant->pThreadWaiting;
+				thread->etat = THREAD_PRET;
+				// Placer dans le buffer circulaire
+				thread->pSuivant = gpThreadCourant->pSuivant;
+				thread->pPrecedant = gpThreadCourant;
+				gThreadTable[thread->id] = thread;
+				gpThreadCourant->pSuivant->pPrecedant = thread;
+				gpThreadCourant->pSuivant = thread;
+
 
 		}
+		precedant = courant;
+		gpWaitTimerList = courant->pNext;
 	}
 
 	// On parcours tous les threads
 	for (i = 0; i < gNumberOfThreadInCircularBuffer; i++) {
-
+		TCB * pThread = gThreadTable[i];
 
 		switch (pThread->etat) {
 			case THREAD_EXECUTE:
