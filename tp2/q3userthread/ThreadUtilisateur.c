@@ -240,20 +240,19 @@ void ThreadCeder(void){
    ******************************************************************************************/
 int ThreadJoindre(tid ThreadID){
 	printf("\n  ******************************** ThreadJoindre(%d)  ******************************* \n",ThreadID);
-	// Récupération des threads et vérifications
-	TCB *pThread = gThreadTable[ThreadID];
-	if (pThread == NULL) {
+	// Obtenir le thread par son tid
+	TCB *threadAJoindre = gThreadTable[ThreadID];
+	if (ThreadAJoindre == NULL || threadAJoindre->etat == THREAD_TERMINE) {
 		return -1;
-	} else if (pThread->etat == THREAD_TERMINE) {
-		return -2;
 	}
 
-	// On crée l'élément de la waitList
+	// Met le thread comme bloquer
 	gpThreadCourant->etat = THREAD_BLOQUE;
+	// Obtient l'espace nécessaire pour waitList
 	WaitList *waitList = (struct WaitList *)malloc(sizeof(struct WaitList));
 	waitList->pThreadWaiting = gpThreadCourant;
-	waitList->pNext = pThread->pWaitListJoinedThreads;
-	pThread->pWaitListJoinedThreads = waitList;
+	waitList->pNext = threadAJoindre->pWaitListJoinedThreads;
+	threadAJoindre->pWaitListJoinedThreads = waitList;
 
 	// On continue dans l'ordonnanceur
 	ThreadCeder();
@@ -268,18 +267,16 @@ int ThreadJoindre(tid ThreadID){
    ******************************************************************************************/
 void ThreadQuitter(void){
 	printf("  ******************************** ThreadQuitter(%d)  ******************************** \n",gpThreadCourant->id);
-	// On définit le thread comme terminé
+	// Mettre le thread comme étant terminer
 	gpThreadCourant->etat = THREAD_TERMINE;
 
-	// Réveille les threads joints
+	// Réveille les threads en attente
 	WaitList *waitList = gpThreadCourant->pWaitListJoinedThreads;
 	while (waitList != NULL) {
 		waitList->pThreadWaiting->etat = THREAD_PRET;
 		waitList = waitList->pNext;
 	}
 
-	// On continue dans l'ordonnanceur
-	// On passe au thread suivant
 	ThreadCeder();
 	printf(" ThreadQuitter:Je ne devrais jamais m'exectuer! Si je m'exécute, vous avez un bug!\n");
 	return;
@@ -298,4 +295,26 @@ tid ThreadId(void) {
    ******************************************************************************************/
 void ThreadDormir(int secondes) {
 	printf("\n  ******************************** ThreadDormir(%d)  ******************************** \n",secondes);
+
+	// Mettre le thread comme bloquer
+	gpThreadCourant->etat = THREAD_BLOQUE;
+
+	// Ajouter le nombre de seconde à dormir
+	gpThreadCourant->WakeupTime = time() + secondes;
+
+	// Allouer l'espace pour la nouvelle waitList.
+	WaitList *waitList = (struct WaitList *)malloc(sizeof(struct WaitList));
+
+	// Mettre le thread courant à dormir
+	waitList->pThreadWaiting = gpThreadCourant;
+
+	// Mettre le suivant comme étant le premier de l'autre liste.
+	waitList->pNext = gpWaitTimerList;
+
+	// Ajouter ensuite l'élément dans la liste du  WaitTimerList.
+	gpWaitTimerList = waitList;
+
+	// Céder la place à un autre thread.
+	ThreadCeder();
+	return;
 }
