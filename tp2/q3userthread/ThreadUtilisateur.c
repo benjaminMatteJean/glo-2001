@@ -205,16 +205,20 @@ void ThreadCeder(void) {
 	// Faire du garbage collection
 	while(gpNextToExecuteInCircularBuffer->etat == THREAD_TERMINE) {
 		TCB * pThread = gpNextToExecuteInCircularBuffer;
+		// On passe au prochain thread à exécuter
+		gpNextToExecuteInCircularBuffer = pThread->pSuivant;
 		retirerDuBufferCirculaire(pThread);
 		// Désallouer sa pile
 		free(pThread->ctx.uc_stack.ss_sp);
 		// Retirer du ThreadTable
 		gThreadTable[pThread->id] = NULL;
-		// On passe au prochain thread à exécuter
-		gpNextToExecuteInCircularBuffer = pThread->pSuivant;
 		// Desallouer le TCB
 		free(pThread);
 	}
+	if (gNumberOfThreadInCircularBuffer == 1 && gpWaitTimerList == NULL) {
+		ajouterAuBufferCirculaire(gThreadTable[1]);
+	}
+
 	TCB *oldCourrant = gpThreadCourant;
 	oldCourrant->etat = THREAD_PRET;
 	gpThreadCourant = gpNextToExecuteInCircularBuffer;
@@ -236,6 +240,7 @@ int ThreadJoindre(tid ThreadID){
 	}
 	// Met le thread comme bloquer
 	gpThreadCourant->etat = THREAD_BLOQUE;
+	retirerDuBufferCirculaire(gpThreadCourant);
 	// Obtient l'espace nécessaire pour waitList
 	WaitList *waitList = (struct WaitList *) malloc(sizeof(struct WaitList));
 	waitList->pThreadWaiting = gpThreadCourant;
