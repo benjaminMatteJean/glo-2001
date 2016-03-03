@@ -72,35 +72,48 @@ void IdleThreadFunction(void *arg) {
 	}
 }
 
+void retirerDuBufferCirculaire(TCB *pThread) {
+	pThread->pPrecedant->pSuivant = pThread->pSuivant;
+	pThread->pSuivant->pPrecedant = pThread->pPrecedant;
+	gNumberOfThreadInCircularBuffer--;
+}
+
+void ajouterAuBufferCirculaire(TCB *pThread) {
+	if (pThread->id == (tid)0) {
+		pThread->pPrecedant = NULL;
+		pThread->pSuivant = NULL;
+	} else if (pThread->id == (tid)1) {
+		pThread->pSuivant = gThreadTable[0];
+		pThread->pSuivant->pPrecedant = pThread;
+		pThread->pPrecedant = gThreadTable[0];
+		pThread->pPrecedant->pSuivant = pThread;
+	}
+	else {
+		pThread->pSuivant = gpThreadCourant->pSuivant;
+		pThread->pSuivant->pPrecedant = pThread;
+		pThread->pPrecedant = gpThreadCourant;
+		pThread->pPrecedant->pSuivant = pThread;
+	}
+	gNumberOfThreadInCircularBuffer++;
+	pThread->etat = THREAD_PRET;
+}
 
 /* ******************************************************************************************
                                    T h r e a d I n i t
    ******************************************************************************************/
 int ThreadInit(void){
 	printf("\n  ******************************** ThreadInit()  ******************************** \n");
-	// Initialisation de la WaitList
-	gpWaitTimerList = (WaitList *) malloc(sizeof(WaitList));
-	gpWaitTimerList->pNext = NULL;
-	gpWaitTimerList->pThreadWaiting = NULL;
-
 	// THREAD IDLE
     ThreadCreer(*IdleThreadFunction, 0);
+
 	// THREAD MAIN
     TCB *tcb_main = (TCB *) malloc(sizeof(TCB));
     tcb_main->id = gNextThreadIDToAllocate;
 	gNextThreadIDToAllocate++;
 	gThreadTable[tcb_main->id] = tcb_main;
+	ajouterAuBufferCirculaire(tcb_main);
 
-	// Ajout du main dans le buffer circulaire
-	tcb_main->pSuivant = gpThreadCourant;
-	tcb_main->pSuivant->pPrecedant = tcb_main;
-	tcb_main->pPrecedant = gThreadTable[0];
-	tcb_main->pPrecedant->pSuivant = tcb_main;
-	gNumberOfThreadInCircularBuffer++;
-
-	tcb_main->etat = THREAD_PRET;
 	gpThreadCourant = tcb_main;
-
 	return 1;
 }
 
@@ -119,84 +132,29 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
 	getcontext(&tcb_nouveau->ctx);
 
 	char *pile = malloc(TAILLE_PILE);
-
 	if (pile == NULL) {
 		return -1;
 	}
-
 	tcb_nouveau->ctx.uc_stack.ss_sp = pile;
 	tcb_nouveau->ctx.uc_stack.ss_size = TAILLE_PILE;
 	makecontext(&tcb_nouveau->ctx, (void *) pFuncThread, 1, arg);
 
-	// AJOUT DANS LE BUFFER CIRCULAIRE
-	if (tcb_nouveau->id == (tid)0) {
-		tcb_nouveau->pPrecedant = NULL;
-		tcb_nouveau->pSuivant = NULL;
-	} else {
-		tcb_nouveau->pSuivant = gpThreadCourant;
-		tcb_nouveau->pSuivant->pPrecedant = tcb_nouveau;
-		tcb_nouveau->pPrecedant = gThreadTable[0];
-		tcb_nouveau->pPrecedant->pSuivant = tcb_nouveau;
-	}
-	gNumberOfThreadInCircularBuffer++;
+	ajouterAuBufferCirculaire(tcb_nouveau);
 
-	tcb_nouveau->etat = THREAD_PRET;
 	gpNextToExecuteInCircularBuffer = tcb_nouveau;
-	gpThreadCourant = gpNextToExecuteInCircularBuffer;
-	return gpThreadCourant->id;
+	return tcb_nouveau->id;
 }
 
 /* ******************************************************************************************
                                    T h r e a d C e d e r
    ******************************************************************************************/
-void ThreadCeder(void){
+void ThreadCeder(void) {
 	printf("\n  ******************************** ThreadCeder()  ******************************** \n");
-
-	WaitList *precedant = NULL;
-
-	while(gpWaitTimerList->pThreadWaiting) {
-		if (gpWaitTimerList->pThreadWaiting->WakeupTime <= time(NULL)) {
-			// Retirer de cette liste
-			if(precedant != NULL) {
-				if(gpWaitTimerList->pNext != NULL) {
-					precedant->pNext = gpWaitTimerList->pNext;
-				} else {
-					precedant->pNext = NULL;
-				}
-			}
-			// Changer son état
-			gpWaitTimerList->pThreadWaiting->etat = THREAD_PRET;
-			// Placer dans le buffer circulaire
-			gpWaitTimerList->pThreadWaiting->pSuivant = gpThreadCourant->pSuivant;
-			gpWaitTimerList->pThreadWaiting->pPrecedant = gpThreadCourant;
-			gpThreadCourant->pSuivant->pPrecedant = gpWaitTimerList->pThreadWaiting;
-			gpThreadCourant->pSuivant = gpWaitTimerList->pThreadWaiting;
-			gNumberOfThreadInCircularBuffer++;
-		}
-		precedant = gpWaitTimerList;
-		gpWaitTimerList = gpWaitTimerList->pNext;
-	}
-	// Faire du garbage collection
-	while(gpNextToExecuteInCircularBuffer->etat == THREAD_TERMINE) {
-		TCB * pThread = gpNextToExecuteInCircularBuffer;
-		// On l'enlève du buffer circulaire
-		pThread->pPrecedant->pSuivant = pThread->pSuivant;
-		pThread->pSuivant->pPrecedant = pThread->pPrecedant;
-		// Désallouer sa pile
-		free(pThread->ctx.uc_stack.ss_sp);
-		// Retirer du ThreadTable
-		gThreadTable[pThread->id] = NULL;
-		// On passe au prochain thread à exécuter
-		gpNextToExecuteInCircularBuffer = pThread->pSuivant;
-		// Desallouer le TCB
-		free(pThread);
-	}
-/*
-	// On parcours tous les threads
-	for (i = 0; i < gNumberOfThreadInCircularBuffer; i++) {
-		TCB * pThread = gThreadTable[i];
-
-		switch (pThread->etat) {
+	printf("----- Etat de l'ordonnanceur avec %d threads -----\n", gNumberOfThreadInCircularBuffer);
+	TCB *itr = gpNextToExecuteInCircularBuffer;
+	do {
+		char etat;
+		switch (itr->etat) {
 			case THREAD_EXECUTE:
 				etat = 'E';
 				break;
@@ -210,28 +168,57 @@ void ThreadCeder(void){
 				etat = 'T';
 				break;
 		}
-
-		// Affichage de l'état du thread
-		printf("ThreadID:%d État:%c\n", pThread->id, etat);
-
-		// Si on a pas trouvé le prochain thread
-		if (pThreadCourantNouveau->id ==  pThreadCourantAncien->id && pThread->etat == THREAD_PRET) {
-			// On met le nouvel état et le thread courant
-			pThreadCourantNouveau = pThread;
-			if (pThreadCourantAncien->etat == THREAD_EXECUTE) {
-				pThreadCourantAncien->etat = THREAD_PRET;
-			}
-			pThreadCourantNouveau->etat = THREAD_EXECUTE;
-			gpThreadCourant = pThreadCourantNouveau;
+		if (itr == gpNextToExecuteInCircularBuffer) {
+			if (itr->id == (tid)0)
+				printf("| prochain->\tThreadID:%d\t État:%c *Special Idle Thread*\t\n", itr->id, etat);
+			else
+				printf("| prochain->\tThreadID:%d\t État:%c\t\n", itr->id, etat);
+		} else {
+			if (itr->id == (tid)0)
+				printf("| \t\tThreadID:%d\t État:%c\t *Special Idle Thread*\t\n", itr->id, etat);
+			else
+				printf("| \t\tThreadID:%d\t État:%c\t\n", itr->id, etat);
 		}
+		itr = itr->pSuivant;
+	} while(itr != gpNextToExecuteInCircularBuffer);
+	printf("----- Liste des threads qui dorment, epoch time=%d -----\n", (int)time(NULL));
+	printf("-------------------------------------------------\n");
 
-		// On prend le prochain thread pour l'autre itération
-		pThread = pThread->pSuivant;
+	WaitList *precedant = NULL;
+	while(gpWaitTimerList && gpWaitTimerList->pThreadWaiting) {
+		if (gpWaitTimerList->pThreadWaiting->WakeupTime <= time(NULL)) {
+			// Retirer de cette liste
+			if(precedant != NULL) {
+				if(gpWaitTimerList->pNext != NULL) {
+					precedant->pNext = gpWaitTimerList->pNext;
+				} else {
+					precedant->pNext = NULL;
+				}
+			}
+			ajouterAuBufferCirculaire(gpWaitTimerList->pThreadWaiting);
+		}
+		precedant = gpWaitTimerList;
+		gpWaitTimerList = gpWaitTimerList->pNext;
 	}
-
-	// On change le contexte
-	swapcontext(&pThreadCourantAncien->ctx, &pThreadCourantNouveau->ctx);
-	*/
+	// Faire du garbage collection
+	while(gpNextToExecuteInCircularBuffer->etat == THREAD_TERMINE) {
+		TCB * pThread = gpNextToExecuteInCircularBuffer;
+		retirerDuBufferCirculaire(pThread);
+		// Désallouer sa pile
+		free(pThread->ctx.uc_stack.ss_sp);
+		// Retirer du ThreadTable
+		gThreadTable[pThread->id] = NULL;
+		// On passe au prochain thread à exécuter
+		gpNextToExecuteInCircularBuffer = pThread->pSuivant;
+		// Desallouer le TCB
+		free(pThread);
+	}
+	TCB *oldCourrant = gpThreadCourant;
+	oldCourrant->etat = THREAD_PRET;
+	gpThreadCourant = gpNextToExecuteInCircularBuffer;
+	gpThreadCourant->etat = THREAD_EXECUTE;
+	gpNextToExecuteInCircularBuffer = gpThreadCourant->pSuivant;
+	swapcontext(&oldCourrant->ctx, &gpThreadCourant->ctx);
 }
 
 
@@ -242,14 +229,14 @@ int ThreadJoindre(tid ThreadID){
 	printf("\n  ******************************** ThreadJoindre(%d)  ******************************* \n",ThreadID);
 	// Obtenir le thread par son tid
 	TCB *threadAJoindre = gThreadTable[ThreadID];
-	if (ThreadAJoindre == NULL || threadAJoindre->etat == THREAD_TERMINE) {
+	if (threadAJoindre == NULL || threadAJoindre->etat == THREAD_TERMINE) {
 		return -1;
 	}
-
 	// Met le thread comme bloquer
 	gpThreadCourant->etat = THREAD_BLOQUE;
+	retirerDuBufferCirculaire(gpThreadCourant);
 	// Obtient l'espace nécessaire pour waitList
-	WaitList *waitList = (struct WaitList *)malloc(sizeof(struct WaitList));
+	WaitList *waitList = (struct WaitList *) malloc(sizeof(struct WaitList));
 	waitList->pThreadWaiting = gpThreadCourant;
 	waitList->pNext = threadAJoindre->pWaitListJoinedThreads;
 	threadAJoindre->pWaitListJoinedThreads = waitList;
@@ -295,25 +282,20 @@ tid ThreadId(void) {
    ******************************************************************************************/
 void ThreadDormir(int secondes) {
 	printf("\n  ******************************** ThreadDormir(%d)  ******************************** \n",secondes);
-
 	// Mettre le thread comme bloquer
 	gpThreadCourant->etat = THREAD_BLOQUE;
-
 	// Ajouter le nombre de seconde à dormir
-	gpThreadCourant->WakeupTime = time() + secondes;
-
+	gpThreadCourant->WakeupTime = time(NULL) + secondes;
+	// Retirer du buffer circulaire
+	retirerDuBufferCirculaire(gpThreadCourant);
 	// Allouer l'espace pour la nouvelle waitList.
 	WaitList *waitList = (struct WaitList *)malloc(sizeof(struct WaitList));
-
 	// Mettre le thread courant à dormir
 	waitList->pThreadWaiting = gpThreadCourant;
-
 	// Mettre le suivant comme étant le premier de l'autre liste.
 	waitList->pNext = gpWaitTimerList;
-
 	// Ajouter ensuite l'élément dans la liste du  WaitTimerList.
 	gpWaitTimerList = waitList;
-
 	// Céder la place à un autre thread.
 	ThreadCeder();
 	return;
