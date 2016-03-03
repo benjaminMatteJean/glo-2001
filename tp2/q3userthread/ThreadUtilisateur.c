@@ -55,6 +55,7 @@ static int gNumberOfThreadInCircularBuffer = 0;
 static int gNextThreadIDToAllocate = 0;
 static WaitList *gpWaitTimerList = NULL;
 static TCB *gThreadTable[MAX_THREADS]; // Utilisé par la fonction ThreadID()
+static char gEtatTable[4] = {'E', 'P', 'B', 'T'};
 
 /* Cette fonction ne fait rien d'autre que de spinner un tour et céder sa place. C'est l'équivalent
    pour un système de se tourner les pouces. */
@@ -151,37 +152,33 @@ tid ThreadCreer(void (*pFuncThread)(void *), void *arg) {
 void ThreadCeder(void) {
 	printf("\n  ******************************** ThreadCeder()  ******************************** \n");
 	printf("----- Etat de l'ordonnanceur avec %d threads -----\n", gNumberOfThreadInCircularBuffer);
-	TCB *itr = gpNextToExecuteInCircularBuffer;
+	struct TCB *i_tcb = gpNextToExecuteInCircularBuffer;
+	struct WaitList *i_waitList = gpWaitTimerList;
 	do {
-		char etat;
-		switch (itr->etat) {
-			case THREAD_EXECUTE:
-				etat = 'E';
-				break;
-			case THREAD_PRET:
-				etat = 'P';
-				break;
-			case THREAD_BLOQUE:
-				etat = 'B';
-				break;
-			case THREAD_TERMINE:
-				etat = 'T';
-				break;
+		char debut[20] = "\t";
+		char special[20] = "";
+		struct WaitList *i_threadWaitList = i_tcb->pWaitListJoinedThreads;
+		if (i_tcb == gpNextToExecuteInCircularBuffer) strncpy(debut, "prochain->", sizeof(debut));
+		if (i_tcb->id == (tid)0) strncpy(special, "*Special Idle Thread*", sizeof(special));
+		printf("| %s\tThreadID:%d\t État:%c %s\t WaitList", debut, i_tcb->id, gEtatTable[i_tcb->etat], special);
+		while(i_threadWaitList) {
+			printf("-->(%d)", i_threadWaitList->pThreadWaiting->id);
+			i_threadWaitList = i_threadWaitList->pNext;
 		}
-		if (itr == gpNextToExecuteInCircularBuffer) {
-			if (itr->id == (tid)0)
-				printf("| prochain->\tThreadID:%d\t État:%c *Special Idle Thread*\t\n", itr->id, etat);
-			else
-				printf("| prochain->\tThreadID:%d\t État:%c\t\n", itr->id, etat);
-		} else {
-			if (itr->id == (tid)0)
-				printf("| \t\tThreadID:%d\t État:%c\t *Special Idle Thread*\t\n", itr->id, etat);
-			else
-				printf("| \t\tThreadID:%d\t État:%c\t\n", itr->id, etat);
-		}
-		itr = itr->pSuivant;
-	} while(itr != gpNextToExecuteInCircularBuffer);
+		printf("\n");
+		i_tcb = i_tcb->pSuivant;
+	} while(i_tcb != gpNextToExecuteInCircularBuffer);
 	printf("----- Liste des threads qui dorment, epoch time=%d -----\n", (int)time(NULL));
+	while (i_waitList) {
+		printf("| \t\tThreadID:%d\t État:%c\t WakeTime=%d\t WaitList", i_waitList->pThreadWaiting->id, gEtatTable[i_waitList->pThreadWaiting->etat], (int)i_waitList->pThreadWaiting->WakeupTime);
+		struct WaitList *i_threadWaitList = i_waitList->pThreadWaiting->pWaitListJoinedThreads;
+		while(i_threadWaitList) {
+			printf("-->(%d)", i_threadWaitList->pThreadWaiting->id);
+			i_threadWaitList = i_threadWaitList->pNext;
+		}
+		printf("\n");
+		i_waitList = i_waitList->pNext;
+	}
 	printf("-------------------------------------------------\n");
 
 	WaitList *precedant = NULL;
