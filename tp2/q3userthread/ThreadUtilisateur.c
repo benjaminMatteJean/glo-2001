@@ -98,6 +98,7 @@ void ajouterAuBufferCirculaire(TCB *pThread) {
 	}
 	gNumberOfThreadInCircularBuffer++;
 	pThread->etat = THREAD_PRET;
+	gpNextToExecuteInCircularBuffer = pThread;
 }
 
 /* ******************************************************************************************
@@ -207,7 +208,7 @@ void ThreadCeder(void) {
 		retirerDuBufferCirculaire(pThread);
 		// Désallouer sa pile
 		free(pThread->ctx.uc_stack.ss_sp);
-		// free(pThread->pWaitListJoinedThreads);
+		free(pThread->pWaitListJoinedThreads);
 		// Retirer du ThreadTable
 		gThreadTable[pThread->id] = NULL;
 		// Desallouer le TCB
@@ -268,13 +269,13 @@ void ThreadQuitter(void){
 	gpThreadCourant->etat = THREAD_TERMINE;
 
 	// Réveille les threads en attente
-	WaitList *waitList;
-		for (waitList = gpThreadCourant->pWaitListJoinedThreads; waitList != NULL; waitList = waitList->pNext) {
+	WaitList *waitList = gpThreadCourant->pWaitListJoinedThreads;
+	for (waitList; waitList != NULL; waitList = waitList->pNext) {
+		printf("ThreadQuitter: je réveille le thread %d\n", waitList->pThreadWaiting->id);
 		ajouterAuBufferCirculaire(waitList->pThreadWaiting);
-		// waitList->pThreadWaiting->etat = THREAD_PRET;
 	}
-
-	retirerDuBufferCirculaire(gpThreadCourant);
+	free(waitList);
+	gpThreadCourant->pWaitListJoinedThreads = NULL;
 
 	ThreadCeder();
 	printf(" ThreadQuitter:Je ne devrais jamais m'exectuer! Si je m'exécute, vous avez un bug!\n");
