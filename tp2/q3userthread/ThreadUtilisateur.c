@@ -203,6 +203,7 @@ void ThreadCeder(void) {
 	// Faire du garbage collection
 	while(gpNextToExecuteInCircularBuffer->etat == THREAD_TERMINE) {
 		TCB * pThread = gpNextToExecuteInCircularBuffer;
+		printf("ThreadCeder: Garbage collection sur le thread %d\n", pThread->id);
 		// On passe au prochain thread à exécuter
 		gpNextToExecuteInCircularBuffer = pThread->pSuivant;
 		retirerDuBufferCirculaire(pThread);
