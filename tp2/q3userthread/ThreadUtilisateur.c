@@ -89,11 +89,6 @@ void ajouterAuBufferCirculaire(TCB *pThread) {
 	if (pThread->id == (tid)0) {
 		pThread->pPrecedant = NULL;
 		pThread->pSuivant = NULL;
-	} else if (pThread->id == (tid)1) {
-		pThread->pSuivant = gThreadTable[0];
-		pThread->pSuivant->pPrecedant = pThread;
-		pThread->pPrecedant = gThreadTable[0];
-		pThread->pPrecedant->pSuivant = pThread;
 	}
 	else {
 		pThread->pSuivant = gpThreadCourant->pSuivant;
@@ -118,7 +113,10 @@ int ThreadInit(void){
 	tcb_main->id = gNextThreadIDToAllocate;
 	gNextThreadIDToAllocate++;
 	gThreadTable[tcb_main->id] = tcb_main;
-	ajouterAuBufferCirculaire(tcb_main);
+	tcb_main->pSuivant = gThreadTable[0];
+	tcb_main->pSuivant->pPrecedant = tcb_main;
+	tcb_main->pPrecedant = gThreadTable[0];
+	tcb_main->pPrecedant->pSuivant = tcb_main;
 	gpThreadCourant = tcb_main;
 	return 1;
 }
@@ -188,24 +186,18 @@ void ThreadCeder(void) {
 
 	WaitList *precedant = NULL;
 	WaitList *courant = gpWaitTimerList;
-	while(courant && courant->pThreadWaiting) {
-		if (courant->pThreadWaiting->WakeupTime <= time(NULL)) {
+	while(courant) {
+		if (courant->pThreadWaiting->WakeupTime < time(NULL)) {
 			// Retirer de cette liste
-			if(precedant != NULL) {
-				if(courant->pNext != NULL) {
-					precedant->pNext = courant->pNext;
-				} else {
-					precedant->pNext = NULL;
-				}
+			if(precedant) {
+				precedant->pNext = courant->pNext;
+			} else {
+				gpWaitTimerList = courant->pNext;
 			}
 			ajouterAuBufferCirculaire(courant->pThreadWaiting);
-			precedant = courant;
-			courant = courant->pNext;
-			free(precedant);
-		} else {
-			precedant = courant;
-			courant = courant->pNext;
 		}
+		precedant = courant;
+		courant = courant->pNext;
 	}
 	// Faire du garbage collection
 	while(gpNextToExecuteInCircularBuffer->etat == THREAD_TERMINE) {
@@ -215,7 +207,7 @@ void ThreadCeder(void) {
 		retirerDuBufferCirculaire(pThread);
 		// Désallouer sa pile
 		free(pThread->ctx.uc_stack.ss_sp);
-		free(pThread->pWaitListJoinedThreads);
+		// free(pThread->pWaitListJoinedThreads);
 		// Retirer du ThreadTable
 		gThreadTable[pThread->id] = NULL;
 		// Desallouer le TCB
@@ -227,7 +219,12 @@ void ThreadCeder(void) {
 	}
 
 	TCB *oldCourrant = gpThreadCourant;
-	oldCourrant->etat = THREAD_PRET;
+	if(oldCourrant->etat == THREAD_EXECUTE) {
+		oldCourrant->etat = THREAD_PRET;
+	}
+	while (gpNextToExecuteInCircularBuffer->etat != THREAD_PRET) {
+		gpNextToExecuteInCircularBuffer = gpNextToExecuteInCircularBuffer->pSuivant;
+	}
 	gpThreadCourant = gpNextToExecuteInCircularBuffer;
 	gpThreadCourant->etat = THREAD_EXECUTE;
 	gpNextToExecuteInCircularBuffer = gpThreadCourant->pSuivant;
@@ -245,14 +242,15 @@ int ThreadJoindre(tid ThreadID){
 	if (threadAJoindre == NULL || threadAJoindre->etat == THREAD_TERMINE) {
 		return -1;
 	}
+	// Met le thread comme bloquer
+	gpThreadCourant->etat = THREAD_BLOQUE;
+	retirerDuBufferCirculaire(gpThreadCourant);
+
 	// Obtient l'espace nécessaire pour waitList
 	WaitList *waitList = (struct WaitList *) malloc(sizeof(struct WaitList));
 	waitList->pThreadWaiting = gpThreadCourant;
 	waitList->pNext = threadAJoindre->pWaitListJoinedThreads;
 	threadAJoindre->pWaitListJoinedThreads = waitList;
-	// Met le thread comme bloquer
-	gpThreadCourant->etat = THREAD_BLOQUE;
-	retirerDuBufferCirculaire(gpThreadCourant);
 
 	// On continue dans l'ordonnanceur
 	ThreadCeder();
@@ -271,8 +269,9 @@ void ThreadQuitter(void){
 
 	// Réveille les threads en attente
 	WaitList *waitList;
-	for (waitList = gpThreadCourant->pWaitListJoinedThreads; waitList != NULL; waitList = waitList->pNext) {
+		for (waitList = gpThreadCourant->pWaitListJoinedThreads; waitList != NULL; waitList = waitList->pNext) {
 		ajouterAuBufferCirculaire(waitList->pThreadWaiting);
+		// waitList->pThreadWaiting->etat = THREAD_PRET;
 	}
 
 	retirerDuBufferCirculaire(gpThreadCourant);
