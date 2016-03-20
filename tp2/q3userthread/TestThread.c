@@ -1,16 +1,16 @@
 /**************************************************************************
     Travail pratique No 2 : Thread utilisateurs
-    
+
     Ce fichier est votre implémentation de la librarie des threads utilisateurs.
-         
+
 	Systemes d'explotation GLO-2001
 	Universite Laval, Quebec, Qc, Canada.
 	(c) 2016 Philippe Giguere
-	
+
 				NE MODIFIEZ PAS CE FICHIER!
 				NE MODIFIEZ PAS CE FICHIER!
 				NE MODIFIEZ PAS CE FICHIER!
-				
+
  **************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +28,7 @@ typedef struct threadArg {
   int Numero;
 } threadArg;
 
-struct timeb gTime; 
+struct timeb gTime;
 
 void printTimestampHeader() {
 	struct timeb actualTime, diffTime;
@@ -56,7 +56,7 @@ void threadFunction(void *arg){
 		for (cpt=0; cpt < 10000000; cpt++);
 		ThreadCeder();
 	}
-	
+
 	for (i=0; i<nTurnToSleep; i++) {
 		TIMESTAMPED_PRINTF(("Thread%d: Je tourne avec une variable sur la pile à 0x%p.\n",ThreadId(),&i));
 		fflush(stdout);
@@ -107,19 +107,19 @@ int main(void) {
 	    TIMESTAMPED_PRINTF(("Main: Le thread avec ID %d a été créé.\n",MyThreadIds[i]));
 	}
 
-	
+
 	//Attendre la fin de tout les threads avec ThreadJoindre
 	for (i = 0; i < nbThread; i++) {// Creation des Threads
 		TIMESTAMPED_PRINTF(("Main: Je joins le thread ID %d\n",MyThreadIds[i]));
 		ThreadJoindre(MyThreadIds[i]);
 		TIMESTAMPED_PRINTF(("Main: Le thread ID %d a terminé!\n",MyThreadIds[i]));
 	}
-	
+
 	TIMESTAMPED_PRINTF(("Main: Tous les threads ont terminé!\n"));
-	
+
 	// On spin une fois pour s'assurer que le garbage collector fasse son travail
 	ThreadCeder();
-	
+
 	TIMESTAMPED_PRINTF(("Main: je termine.\n"));
 
 	return EXIT_SUCCESS;
