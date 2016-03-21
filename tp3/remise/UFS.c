@@ -94,10 +94,21 @@ void printiNode(iNodeEntry iNode) {
 /* ----------------------------------------------------------------------------------------
 					            à vous de jouer, maintenant!
    ---------------------------------------------------------------------------------------- */
-					 
+
 
 int bd_countfreeblocks(void) {
-	return 0;
+	char freeBlocks[BLOCK_SIZE];
+	int i, freeBlocksCount = 0;
+
+	ReadBlock(FREE_BLOCK_BITMAP, freeBlocks);
+	
+	for(i = 0; i < BLOCK_SIZE; i++) {
+		if (freeBlocks[i] != 0) {
+			freeBlocksCount++;
+		}
+	}
+
+	return freeBlocksCount;
 }
 
 int bd_stat(const char *pFilename, gstat *pStat) {
@@ -116,7 +127,7 @@ int bd_mkdir(const char *pDirName) {
 	return -1;
 }
 
-int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) { 
+int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) {
 	return -1;
 }
 
@@ -151,4 +162,3 @@ int bd_symlink(const char *pPathExistant, const char *pPathNouveauLien) {
 int bd_readlink(const char *pPathLien, char *pBuffer, int sizeBuffer) {
     return -1;
 }
-
