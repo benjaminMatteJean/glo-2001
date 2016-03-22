@@ -26,7 +26,6 @@ int max(int a, int b) {
 int GetDirFromPath(const char *pPath, char *pDir) {
 	strcpy(pDir,pPath);
 	int len = strlen(pDir); // length, EXCLUDING null
-	int index;
 
 	// On va a reculons, de la fin au debut
 	while (pDir[len]!='/') {
@@ -97,13 +96,13 @@ void printiNode(iNodeEntry iNode) {
 
 
 int bd_countfreeblocks(void) {
-	char freeBlocks[BLOCK_SIZE];
+	char freeBlocksData[BLOCK_SIZE];
 	int i, freeBlocksCount = 0;
 
-	ReadBlock(FREE_BLOCK_BITMAP, freeBlocks);
-	
+	ReadBlock(FREE_BLOCK_BITMAP, freeBlocksData);
+
 	for(i = 0; i < BLOCK_SIZE; i++) {
-		if (freeBlocks[i] != 0) {
+		if (freeBlocksData[i] != 0) {
 			freeBlocksCount++;
 		}
 	}
@@ -112,6 +111,7 @@ int bd_countfreeblocks(void) {
 }
 
 int bd_stat(const char *pFilename, gstat *pStat) {
+
 	return -1;
 }
 
@@ -161,4 +161,61 @@ int bd_symlink(const char *pPathExistant, const char *pPathNouveauLien) {
 
 int bd_readlink(const char *pPathLien, char *pBuffer, int sizeBuffer) {
     return -1;
+}
+
+// Fonctions auxiliaires
+
+int getINodeNumFromFilename(const char *pFilename) {
+	// TODO Implémenter cette fonction (trouve l'inode correspondante au nom de fichier)
+	return -1;
+}
+
+int seizeFreeBlock() {
+	char freeBlocksData[BLOCK_SIZE];
+	ReadBlock(FREE_BLOCK_BITMAP, freeBlocksData);
+	int blockNum = BASE_BLOCK_INODE + (N_INODE_ON_DISK / NUM_INODE_PER_BLOCK);
+	while (freeBlocksData[blockNum] == 0 && blockNum < N_BLOCK_ON_DISK) {
+		blockNum++;
+	}
+	if (blockNum >= N_BLOCK_ON_DISK) {
+		return -1;
+	}
+	freeBlocksData[blockNum] = 0;
+	printf("GLOFS: Saisie bloc %d\n",blockNum);
+	WriteBlock(FREE_BLOCK_BITMAP, freeBlocksData);
+	return blockNum;
+}
+
+int releaseFreeBlock(UINT16 blockNum) {
+	char freeBlocksData[BLOCK_SIZE];
+	ReadBlock(FREE_BLOCK_BITMAP, freeBlocksData);
+	freeBlocksData[blockNum] = 1;
+	printf("GLOFS: Relache bloc %d\n",blockNum);
+	WriteBlock(FREE_BLOCK_BITMAP, freeBlocksData);
+	return 1;
+}
+
+int seizeFreeINode() {
+	char freeINodeData[BLOCK_SIZE];
+	ReadBlock(FREE_BLOCK_BITMAP, freeINodeData);
+	int inodeNum = ROOT_INODE;
+	while (freeINodeData[inodeNum] == 0 && inodeNum < N_INODE_ON_DISK) {
+		inodeNum++;
+	}
+	if (inodeNum >= N_INODE_ON_DISK) {
+		return -1;
+	}
+	freeINodeData[inodeNum] = 0;
+	printf("GLOFS: Saisie i-node %d\n",inodeNum);
+	WriteBlock(FREE_BLOCK_BITMAP, freeINodeData);
+	return inodeNum;
+}
+
+int releaseFreeINode(UINT16 inodeNum) {
+	char freeINodesData[BLOCK_SIZE];
+	ReadBlock(FREE_INODE_BITMAP, freeINodesData);
+	freeINodesData[inodeNum] = 1;
+	printf("GLOFS: Relache i-node %d\n",inodeNum);
+	WriteBlock(FREE_INODE_BITMAP, freeINodesData);
+	return 1;
 }
