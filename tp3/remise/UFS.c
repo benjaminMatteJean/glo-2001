@@ -212,7 +212,7 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 	iNodeEntry *pINodes = (iNodeEntry *) blockData;
 	// Copie des métadonnées gstat du fichier vers le pointeur pStat
 	pStat = &pINodes[iNodePosition].iNodeStat;
-	return 0;
+	return 0; // En cas de succès
 }
 
 /* Cette fonction vient créer un fichier normal vide (bit G_IFREG de st_mode à 1, taille=0, donc sans
@@ -222,7 +222,10 @@ pFilename est égal à /doc/tmp/a.txt , vous devez créer le fichier a.txt dans 
 déjà, auquel cas retournez -2. Pour les permissions rwx, simplement les mettre toutes à 1, en faisant
 st_mode|=G_IRWXU|G_IRWXG . Retournez 0 pour indiquer le succès de l’opération. */
 int bd_create(const char *pFilename) {
-	return -1;
+	// TODO à compléter
+	return -1; // Si le répertoire n'existe pas
+	return -2; // Si le fichier existe déjà
+	return 0; // En cas de succès
 }
 
 /* Cette fonction va lire numbytes octets dans le fichier pFilename , à partir de la position offset , et les
@@ -234,11 +237,13 @@ dépasse la taille du fichier, cette fonction devra simplement retourner 0, car 
 aucun caractère. Notez que le nombre de blocs par fichier est limité à 1, ce qui devrait simplifier le code
 de lecture. */
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
-	return -1;
+	// TODO à compléter
+	return -1; // Si le fichier pFilename est inexistant
+	return -2; // Si le fichier pFilename est un répertoire
+	return 0; // Si le offset engendre un overflow
 }
 
-/* Cette fonction doit créer le répertoire pDirName .
-Si le chemin d’accès à pDirName est inexistant, ne
+/* Cette fonction doit créer le répertoire pDirName. Si le chemin d’accès à pDirName est inexistant, ne
 faites rien et retournez -1, par exemple si on demande de créer le répertoire /doc/tmp/toto et que le
 répertoire /doc/tmp n’existe pas. Assurez-vous que l’i-node correspondant au répertoire est marqué
 comme répertoire (bit G_IFDIR de st_mode à 1). Si le répertoire pDirName existe déjà, retournez
@@ -247,7 +252,10 @@ st_mode|=G_IRWXU|G_IRWXG . Assurez-vous aussi que le répertoire contiennent les
 suivants : « . » et « .. ». N’oubliez-pas d’incrémenter st_nlink pour le répertoire actuel « . » et parent
 « .. ». En cas de succès, retournez 0. */
 int bd_mkdir(const char *pDirName) {
-	return -1;
+	// TODO à compléter
+	return -1; // Si le chemin d'accès pDirName est inexistant
+	return -2; // Si le répertoire pDirName existe déjà
+	return 0; // En cas de succès
 }
 
 /* Cette fonction va écrire numbytes octets du buffer dans le fichier pFilename , à partir de la position
@@ -265,7 +273,12 @@ devez quand même écrire le plus possible dans le fichier, jusqu’à atteindre
 fonction retournera ce nombre d’octet écrit.
 N’oubliez-pas de modifier la taille du fichier st_size . */
 int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) {
-	return -1;
+	// TODO à compléter
+	return -1; // Si le fichier pFilename est inexistant
+	return -2; // Si pFilename est un répertoire
+	return -3; // Si l'offset est supérieur ou égal à la taille du fichier (engendre un overflow)
+	return -4; // Si l'offset est supérieur ou égal à la taille maximale supportée
+	// return le nombre d’octets écrits;
 }
 
 /* Cette fonction créer un hardlink entre l’i-node du fichier pPathExistant et le nom de fichier
@@ -278,7 +291,12 @@ bd_hardlink("/tmp/a.txt","/tmp/aln.txt")
 Si le fichier pPathNouveauLien , existe déjà, retournez -2. Si le fichier pPathExistant est inexistant,
 retournez -1. Si tout se passe bien, retournez 0. */
 int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
-	return -1;
+	// TODO à compléter
+	return -1; // Le fichier pPathExistant est inexistant
+	return -1; // Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
+	return -2; // le fichier pPathNouveauLien existe déjà
+	return -3; // Le fichier pPathExistant est un répertoire
+	return 0; // En cas de succès
 }
 
 /* Cette fonction sert à retirer un fichier normal ( G_IFREG 5 à 1) du répertoire dans lequel il est contenu. Le
@@ -291,7 +309,10 @@ n’est pas à la fin de ce tableau. Si pFilename n’existe pas retournez -1. S
 G_IFREG , retournez -2. Autrement, retourner 0 pour indiquer le succès.
 *Un lien symbolique est aussi un fichier régulier. Il faudra donc le retirer du répertoire.* */
 int bd_unlink(const char *pFilename) {
-	return -1;
+	// TODO à compléter
+	return -1; // Si pFilename n'existe pas
+	return -2; // Le fichier n'est pas un fichier régulier G_IFREG
+	return 0; // En cas de succès
 }
 
 /* Cette fonction change la taille d’un fichier présent sur le disque. Pour les erreurs, la fonction retourne -1
@@ -301,7 +322,10 @@ taille actuelle comme valeur. N’oubliez-pas de marquer comme libre les blocs l
 fonction, si le changement de taille est tel que certains blocs sont devenus inutiles. Dans notre cas,
 ce sera si on tronque à la taille 0. */
 int bd_truncate(const char *pFilename, int NewSize) {
-	return -1;
+	// TODO à compléter
+	return -1; // Le fichier pFilename est inexistant
+	return -2; // Si pFilename est un répertoire
+	// return la nouvelle taille du fichier;
 }
 
 /* Cette fonction sert à effacer un répertoire vide, i.e. s’il ne contient pas d’autre chose que les deux
@@ -309,7 +333,11 @@ répertoires « . » et « .. ». Si le répertoire n’est pas vide, ne faites 
 décrémenter st_nlink pour le répertoire parent « .. ». Si le répertoire est inexistant, retourner -1. Si
 c’est un fichier régulier, retournez -2. Autrement, retournez 0 pour indiquer le succès. */
 int bd_rmdir(const char *pFilename) {
-	return -1;
+	// TODO à compléter
+	return -1; // Si le répertoire pFilename st inexistant
+	return -2; // si pFilename est un fichier régulier
+	return -3; // Si le répertore n'est pas vide
+	return 0; // En cas de succès
 }
 
 /* Cette fonction sert à déplacer ou renommer un fichier ou répertoire pFilename. Le nom et le répertoire
@@ -324,7 +352,10 @@ inexistant, retournez -1. Pour vous simplifier la vie, vous n’avez pas besoin 
 fichier déplacé pFilename est un répertoire, et la destination pFilenameDest est un sous-répertoire
 de celui-ci. */
 int bd_rename(const char *pFilename, const char *pDestFilename) {
-	return -1;
+	// TODO à compléter
+	return -1; // Le fichier pFilename est inexistant
+	return -1; // Le répertoire pDestFilename est inexistant
+	return 0; // En cas de succès
 }
 
 /* Cette fonction est utilisée pour permettre la lecture du contenu du répertoire pDirLocation . Si le
@@ -337,7 +368,9 @@ bd_readdir retourne comme valeur le nombre de fichiers et sous-répertoires cont
 répertoire pDirLocation (incluant . et ..). S’il y a une erreur, retourner -1. L’appelant sera en charge
 de désallouer la mémoire via free . */
 int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
-	return -1;
+	// TODO à compléter
+	return -1; // S'il y a une erreur
+	// return le nombre de fichiers et sous-répertoires contenus dans ce répertoire pDirLocation (incluant . et ..);
 }
 
 /* Cette fonction est utilisée pour créer un lien symbolique vers pPathExistant . Vous devez ainsi créer
@@ -352,7 +385,10 @@ la commande ./ufs read /slnb.txt 0 40 , cette lecture retournera /b.txt et non p
 de b.txt . La commande suivante bd_readlink sera utilisée par le système d’exploitation pour faire le
 déréférencement du lien symbolique, plus tard quand nous allons le monter dans Linux avec FUSE. */
 int bd_symlink(const char *pPathExistant, const char *pPathNouveauLien) {
-    return -1;
+	// TODO à compléter
+	return -1; // Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
+	return -2; // Si le fichier pPathNouveauLien existe déjà
+	return 0; // En cas de succès
 }
 
 /* Cette fonction est utilisée pour copier le contenu d’un lien symbolique pPathLien , dans le buffer
@@ -361,5 +397,8 @@ sur lequel ce lien symbolique pointe. Cette fonction permettra ainsi au système
 montée dans Linux, de déréférencer les liens symboliques. Si le fichier pPathLien n’existe pas ou qu’il
 n’est pas un lien symbolique, retournez -1. Sinon, retournez le nombre de caractères lus. */
 int bd_readlink(const char *pPathLien, char *pBuffer, int sizeBuffer) {
-    return -1;
+	// TODO à compléter
+    return -1; // Si le fichier pPathLien est inexistant
+    return -1; // Si le fichier pPathLien n'est pas un lien symbolique
+	// return le nombre de caractères lus;
 }
