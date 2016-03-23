@@ -25,6 +25,7 @@
 #define FREE_BLOCK_BITMAP 2		// numero du bloc contenant le bitmap des block libres
 #define FREE_INODE_BITMAP 3		// numero du bloc contenant le bitmap des i-nodes libres
 #define BASE_BLOCK_INODE  4     // bloc de depart ou les i-nodes sont stockes sur disque
+#define BASE_BLOCK_DATA BASE_BLOCK_INODE + (N_INODE_ON_DISK / NUM_INODE_PER_BLOCK)
 #define DISKSIZE N_BLOCK_ON_DISK*BLOCK_SIZE // taille du disque
 #define ROOT_INODE        1     // numero du i-node correspondant au repertoire racine
 #define FILENAME_SIZE 14        // taille en caractere d'un nom de fichier, incluant le NULL
