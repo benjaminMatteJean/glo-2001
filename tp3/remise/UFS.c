@@ -97,10 +97,17 @@ void printiNode(iNodeEntry iNode) {
 
 // FONCTIONS AUXILIAIRES
 
-int getINodeNumFromPath(const char *pPath, int iNodeNum) {
-	char *pDirName = 0, *pFileName = 0;
-	GetFilenameFromPath(pPath, pFileName);
+int getDirINodeNumFromPath(const char *pPath, int iNodeNum) {
+	// TODO: à implémenter
+	char *pDirName = 0;
 	GetDirFromPath(pPath, pDirName);
+	return -1; // Le répertoire est inexistant
+}
+
+int getFileINodeNumFromPath(const char *pPath, int iNodeNum) {
+	// TODO: à corriger
+	char *pFileName = 0;
+	GetFilenameFromPath(pPath, pFileName);
    	char blockData[BLOCK_SIZE];
    	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node
    	int iNodesBlockNum = BASE_BLOCK_INODE + (iNodeNum / NUM_INODE_PER_BLOCK);
@@ -119,7 +126,7 @@ int getINodeNumFromPath(const char *pPath, int iNodeNum) {
    		if (strcmp(pFileName, pDE[n].Filename) == 0) {
    			return (int) pDE[n].iNode;	// On a trouvé le numéro d'i-node correspondant au nom de fichier/repertoire
    		} else {
-   			getINodeNumFromPath(pFileName, pDE[n].iNode);	// On appelle récursivement la fonction
+   			getFileINodeNumFromPath(pFileName, pDE[n].iNode);	// On appelle récursivement la fonction
    		}
    	}
    	return -1;	// Le nom de fichier/répertoire n'existe pas
@@ -201,7 +208,7 @@ métadonnées du fichier pFilename doivent demeurer inchangées. La fonction ret
 pFilename est inexistant. Autrement, la fonction retourne 0. */
 int bd_stat(const char *pFilename, gstat *pStat) {
 	// On trouve le numero d'i-node correspondant au nom de fichier à partir de la racine
-	int iNodeNum = getINodeNumFromPath(pFilename, ROOT_INODE);
+	int iNodeNum = getFileINodeNumFromPath(pFilename, ROOT_INODE);
 	if (iNodeNum == -1) {
 		return -1;	// Le fichier/répertoire est inexistant
 	}
@@ -244,6 +251,7 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 	return -1; // Si le fichier pFilename est inexistant
 	return -2; // Si le fichier pFilename est un répertoire
 	return 0; // Si le offset engendre un overflow
+	// return le nombre d'octets lus
 }
 
 /* Cette fonction doit créer le répertoire pDirName. Si le chemin d’accès à pDirName est inexistant, ne
