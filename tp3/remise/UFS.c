@@ -97,7 +97,10 @@ void printiNode(iNodeEntry iNode) {
 
 // FONCTIONS AUXILIAIRES
 
-int getINodeNumFromFilename(const char *pFilename, int iNodeNum) {
+int getINodeNumFromPath(const char *pPath, int iNodeNum) {
+	char *pDirName = 0, *pFileName = 0;
+	GetFilenameFromPath(pPath, pFileName);
+	GetDirFromPath(pPath, pDirName);
    	char blockData[BLOCK_SIZE];
    	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node
    	int iNodesBlockNum = BASE_BLOCK_INODE + (iNodeNum / NUM_INODE_PER_BLOCK);
@@ -107,16 +110,16 @@ int getINodeNumFromFilename(const char *pFilename, int iNodeNum) {
    	// On trouve la position de l'i-node dans le block d'i-node
    	UINT16 iNodePosition = iNodeNum - (iNodeNum / NUM_INODE_PER_BLOCK) * NUM_INODE_PER_BLOCK;
    	// On trouve le nombre d'entrées dans le block de l'i-node
-   	UINT16 entryNum = pINodes[iNodePosition].iNodeStat.st_size / sizeof(DirEntry);
+   	UINT16 entryNum = NumberofDirEntry(pINodes[iNodePosition].iNodeStat.st_size);
    	// Lecture du block de données associé à l'i-node
    	ReadBlock(pINodes[iNodePosition].Block[0], blockData);
    	DirEntry *pDE = (DirEntry *) blockData;
    	// Pour chaque entrée du block (sauf . et ..) on vérifie le nom de fichier
    	for (size_t n = 2; n < entryNum; n++) {
-   		if (strcmp(pFilename, pDE[n].Filename) == 0) {
+   		if (strcmp(pFileName, pDE[n].Filename) == 0) {
    			return (int) pDE[n].iNode;	// On a trouvé le numéro d'i-node correspondant au nom de fichier/repertoire
    		} else {
-   			getINodeNumFromFilename(pFilename, pDE[n].iNode);	// On appelle récursivement la fonction
+   			getINodeNumFromPath(pFileName, pDE[n].iNode);	// On appelle récursivement la fonction
    		}
    	}
    	return -1;	// Le nom de fichier/répertoire n'existe pas
@@ -185,7 +188,7 @@ int bd_countfreeblocks(void) {
 	char freeBlocksData[BLOCK_SIZE];
 	int i, freeBlocksCount = 0;
 	ReadBlock(FREE_BLOCK_BITMAP, freeBlocksData);
-	for(i = 0; i < BLOCK_SIZE; i++) {
+	for(i = 0; i < N_BLOCK_ON_DISK; i++) {
 		if (freeBlocksData[i] != 0) {
 			freeBlocksCount++;
 		}
@@ -198,7 +201,7 @@ métadonnées du fichier pFilename doivent demeurer inchangées. La fonction ret
 pFilename est inexistant. Autrement, la fonction retourne 0. */
 int bd_stat(const char *pFilename, gstat *pStat) {
 	// On trouve le numero d'i-node correspondant au nom de fichier à partir de la racine
-	int iNodeNum = getINodeNumFromFilename(pFilename, ROOT_INODE);
+	int iNodeNum = getINodeNumFromPath(pFilename, ROOT_INODE);
 	if (iNodeNum == -1) {
 		return -1;	// Le fichier/répertoire est inexistant
 	}
