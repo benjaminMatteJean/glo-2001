@@ -233,7 +233,10 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 	ino iNodeNum = getFileINodeNumFromPath(pFilename);
 	if (iNodeNum == -1) return -1;	// Le fichier/répertoire est inexistant
 	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
-	if (getINodeEntry(iNodeNum, pIE) != 0) return -1;
+	if (getINodeEntry(iNodeNum, pIE) != 0) {
+		free(pIE);
+		return -1;
+	}
 	// Copie des métadonnées gstat du fichier vers le pointeur pStat
 	*pStat = pIE->iNodeStat;
 	free(pIE);
@@ -265,9 +268,18 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 	ino iNodeNum = getFileINodeNumFromPath(pFilename);
 	if (iNodeNum == -1) return -1;	// Le fichier pFilename est inexistant
 	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
-	if (getINodeEntry(iNodeNum, pIE) != 0) return -1;	// Le fichier pFilename est inexistant
-	if (pIE->iNodeStat.st_mode & G_IFDIR) return -2;	// Le fichier pFilename est un répertoire
-	if (pIE->iNodeStat.st_size <= offset) return 0;		// L'offset engendre un overflow
+	if (getINodeEntry(iNodeNum, pIE) != 0) {
+		free(pIE);
+		return -1;
+	}	// Le fichier pFilename est inexistant
+	if (pIE->iNodeStat.st_mode & G_IFDIR) {
+		free(pIE);
+		return -2;
+	}	// Le fichier pFilename est un répertoire
+	if (pIE->iNodeStat.st_size <= offset) {
+		free(pIE);
+		return 0;
+	}		// L'offset engendre un overflow
 
 	char fileDataBlock[BLOCK_SIZE];
 	ReadBlock(pIE->Block[0], fileDataBlock);
@@ -406,8 +418,19 @@ bd_readdir retourne comme valeur le nombre de fichiers et sous-répertoires cont
 répertoire pDirLocation (incluant . et ..). S’il y a une erreur, retourner -1. L’appelant sera en charge
 de désallouer la mémoire via free . */
 int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
-	// TODO à compléter
-	return -1; // S'il y a une erreur
+	ino iNodeNum = getFileINodeNumFromPath(pDirLocation);
+	if (iNodeNum == -1) return -1;	// Le fichier pDirLocation est inexistant
+	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
+	if (getINodeEntry(iNodeNum, pIE) != 0) {
+		free(pIE);
+		return -1;
+	}	// Le fichier pDirLocation est inexistant
+	if (!(pIE->iNodeStat.st_mode & G_IFDIR)) {
+		free(pIE);
+		return -1;
+	}	// Le fichier pDirLocation n'est pas un répertoire
+
+	free(pIE);
 	// return le nombre de fichiers et sous-répertoires contenus dans ce répertoire pDirLocation (incluant . et ..);
 }
 
