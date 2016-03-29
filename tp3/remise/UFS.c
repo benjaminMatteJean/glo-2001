@@ -230,10 +230,9 @@ métadonnées du fichier pFilename doivent demeurer inchangées. La fonction ret
 pFilename est inexistant. Autrement, la fonction retourne 0. */
 int bd_stat(const char *pFilename, gstat *pStat) {
 	// On trouve le numero d'i-node correspondant au nom de fichier à partir de la racine
-	int iNodeNum = getFileINodeNumFromPath(pFilename);
+	ino iNodeNum = getFileINodeNumFromPath(pFilename);
 	if (iNodeNum == -1) return -1;	// Le fichier/répertoire est inexistant
 	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
-	printf("inodeNum: %d\n", iNodeNum);
 	if (getINodeEntry(iNodeNum, pIE) != 0) return -1;
 	// Copie des métadonnées gstat du fichier vers le pointeur pStat
 	*pStat = pIE->iNodeStat;
@@ -263,11 +262,23 @@ dépasse la taille du fichier, cette fonction devra simplement retourner 0, car 
 aucun caractère. Notez que le nombre de blocs par fichier est limité à 1, ce qui devrait simplifier le code
 de lecture. */
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
-	return -1; // Si le fichier pFilename est inexistant
+	ino iNodeNum = getFileINodeNumFromPath(pFilename);
+	if (iNodeNum == -1) return -1;	// Le fichier pFilename est inexistant
+	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
+	if (getINodeEntry(iNodeNum, pIE) != 0) return -1;	// Le fichier pFilename est inexistant
+	if (pIE->iNodeStat.st_mode & G_IFDIR) return -2;	// Le fichier pFilename est un répertoire
+	if (pIE->iNodeStat.st_size <= offset) return 0;		// L'offset engendre un overflow
 
-	return -2; // Si le fichier pFilename est un répertoire
-	return 0; // Si le offset engendre un overflow
-	// return le nombre d'octets lus
+	char fileDataBlock[BLOCK_SIZE];
+	ReadBlock(pIE->Block[0], fileDataBlock);
+
+	int i = 0;
+	for (i = offset; i < pIE->iNodeStat.st_size && i < (offset + numbytes); i++) {
+		buffer[i] = fileDataBlock[i];
+	}
+
+	free(pIE);
+	return i;
 }
 
 /* Cette fonction doit créer le répertoire pDirName. Si le chemin d’accès à pDirName est inexistant, ne
