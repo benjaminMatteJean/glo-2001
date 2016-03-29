@@ -97,40 +97,56 @@ void printiNode(iNodeEntry iNode) {
 
 // FONCTIONS AUXILIAIRES
 
-int getDirINodeNumFromPath(const char *pPath, int iNodeNum) {
-	// TODO: à implémenter
-	char *pDirName = 0;
-	GetDirFromPath(pPath, pDirName);
-	return -1; // Le répertoire est inexistant
+int getFileINodeNumFromParent(const char *pFileName, int parentINodeNum) {
+	char blockData[BLOCK_SIZE];
+	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node parent
+	int iNodesBlockNum = BASE_BLOCK_INODE + (parentINodeNum / NUM_INODE_PER_BLOCK);
+	// Lecture du block d'i-nodes
+	ReadBlock(iNodesBlockNum, blockData);
+	iNodeEntry *pINodes = (iNodeEntry *) blockData;
+	// On trouve la position de l'i-node parent dans le block d'i-nodes
+	UINT16 iNodePosition = parentINodeNum - (parentINodeNum / NUM_INODE_PER_BLOCK) * NUM_INODE_PER_BLOCK;
+	// On trouve le nombre d'entrées dans le block de l'i-node parent
+	UINT16 entryNum = NumberofDirEntry(pINodes[iNodePosition].iNodeStat.st_size);
+	// Lecture du block de données associé à l'i-node parent
+	ReadBlock(pINodes[iNodePosition].Block[0], blockData);
+	DirEntry *pDE = (DirEntry *) blockData;
+	// Pour chaque entrée du block (sauf . et ..) on vérifie le nom de fichier
+	for (size_t n = 2; n < entryNum; n++) {
+		if (strcmp(pFileName, pDE[n].Filename) == 0) {
+			return pDE[n].iNode;	// On a trouvé le numéro d'i-node correspondant au nom de fichier/repertoire
+		}
+	}
+	return -1;	// Le nom de fichier/répertoire n'existe pas
 }
 
-int getFileINodeNumFromPath(const char *pPath, int iNodeNum) {
-	// TODO: à corriger
-	char *pFileName = 0;
-	GetFilenameFromPath(pPath, pFileName);
-   	char blockData[BLOCK_SIZE];
-   	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node
-   	int iNodesBlockNum = BASE_BLOCK_INODE + (iNodeNum / NUM_INODE_PER_BLOCK);
-   	// Lecture du block d'i-nodes
-   	ReadBlock(iNodesBlockNum, blockData);
-   	iNodeEntry *pINodes = (iNodeEntry *) blockData;
-   	// On trouve la position de l'i-node dans le block d'i-node
-   	UINT16 iNodePosition = iNodeNum - (iNodeNum / NUM_INODE_PER_BLOCK) * NUM_INODE_PER_BLOCK;
-   	// On trouve le nombre d'entrées dans le block de l'i-node
-   	UINT16 entryNum = NumberofDirEntry(pINodes[iNodePosition].iNodeStat.st_size);
-   	// Lecture du block de données associé à l'i-node
-   	ReadBlock(pINodes[iNodePosition].Block[0], blockData);
-   	DirEntry *pDE = (DirEntry *) blockData;
-   	// Pour chaque entrée du block (sauf . et ..) on vérifie le nom de fichier
-   	for (size_t n = 2; n < entryNum; n++) {
-   		if (strcmp(pFileName, pDE[n].Filename) == 0) {
-   			return (int) pDE[n].iNode;	// On a trouvé le numéro d'i-node correspondant au nom de fichier/repertoire
-   		} else {
-   			getFileINodeNumFromPath(pFileName, pDE[n].iNode);	// On appelle récursivement la fonction
-   		}
-   	}
-   	return -1;	// Le nom de fichier/répertoire n'existe pas
+int getInode(const char *pPath, const char *pFilename, int parentINodeNum) {
+	if (parentINodeNum == -1) return -1;
+
+	char pName[FILENAME_SIZE];
+	int iCar, iSlash = 0;
+	for (iCar = 0; iCar < FILENAME_SIZE; iCar++) {
+		if (pPath[iCar] == 0) break;
+		else if (pPath[iCar] == '/' && iCar != 0) break;
+		else if (pPath[iCar] == '/') iSlash++;
+		else {
+			pName[(iCar-iSlash)] = pPath[iCar];
+		}
+	}
+	pName[iCar - iSlash] = 0;
+	if (strcmp(pFilename, pName) == 0) {
+		return getFileINodeNumFromParent(pName, parentINodeNum);
+	} else {
+		getInode(pPath + strlen(pName) + 1, pFilename, getFileINodeNumFromParent(pName, parentINodeNum));
+	}
 }
+
+int getFileINodeNumFromPath(const char *pPath) {
+	char pName[FILENAME_SIZE];
+	GetFilenameFromPath(pPath, pName);
+	return getInode(pPath, pName, ROOT_INODE);
+}
+
 
 int seizeFreeBlock() {
    	char freeBlocksData[BLOCK_SIZE];
@@ -208,20 +224,18 @@ métadonnées du fichier pFilename doivent demeurer inchangées. La fonction ret
 pFilename est inexistant. Autrement, la fonction retourne 0. */
 int bd_stat(const char *pFilename, gstat *pStat) {
 	// On trouve le numero d'i-node correspondant au nom de fichier à partir de la racine
-	int iNodeNum = getFileINodeNumFromPath(pFilename, ROOT_INODE);
-	if (iNodeNum == -1) {
-		return -1;	// Le fichier/répertoire est inexistant
-	}
+	int iNodeNum = getFileINodeNumFromPath(pFilename);
+	if (iNodeNum == -1) return -1;	// Le fichier/répertoire est inexistant
 	char blockData[BLOCK_SIZE];
 	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node
 	int iNodesBlockNum = BASE_BLOCK_INODE + (iNodeNum / NUM_INODE_PER_BLOCK);
 	// On trouve la position de l'i-node dans le block d'i-node
-	UINT16 iNodePosition = iNodeNum - (iNodeNum / NUM_INODE_PER_BLOCK) * NUM_INODE_PER_BLOCK;
+	UINT16 iNodePosition = iNodeNum % NUM_INODE_PER_BLOCK;
 	// Lecture du block d'i-nodes
 	ReadBlock(iNodesBlockNum, blockData);
 	iNodeEntry *pINodes = (iNodeEntry *) blockData;
 	// Copie des métadonnées gstat du fichier vers le pointeur pStat
-	pStat = &pINodes[iNodePosition].iNodeStat;
+	*pStat = pINodes[iNodePosition].iNodeStat;
 	return 0; // En cas de succès
 }
 
