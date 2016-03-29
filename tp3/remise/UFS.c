@@ -147,6 +147,19 @@ int getFileINodeNumFromPath(const char *pPath) {
 	return getInode(pPath, pName, ROOT_INODE);
 }
 
+int getINodeEntry(ino iNodeNum, iNodeEntry *pIE) {
+	if (iNodeNum > N_INODE_ON_DISK || iNodeNum < 0) return -1;
+	char blockData[BLOCK_SIZE];
+	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node
+	UINT16 iNodesBlockNum = BASE_BLOCK_INODE + (iNodeNum / NUM_INODE_PER_BLOCK);
+	// On trouve la position de l'i-node dans le block d'i-node
+	UINT16 iNodePosition = iNodeNum % NUM_INODE_PER_BLOCK;
+	// Lecture du block d'i-nodes
+	ReadBlock(iNodesBlockNum, blockData);
+	iNodeEntry *pINodes = (iNodeEntry *) blockData;
+	*pIE = pINodes[iNodePosition];
+	return 0;
+}
 
 int seizeFreeBlock() {
    	char freeBlocksData[BLOCK_SIZE];
@@ -197,13 +210,6 @@ int releaseFreeINode(UINT16 inodeNum) {
    	WriteBlock(FREE_INODE_BITMAP, freeINodesData);
    	return 1;
 }
-
-bool isINodeFree(UINT16 inodeNum) {
-   	char freeINodesData[BLOCK_SIZE];
-   	ReadBlock(FREE_BLOCK_BITMAP, freeINodesData);
-   	return (freeINodesData[inodeNum] != 0) ? true : false;
-}
-
 // FIN FONCTIONS AUXILIAIRES
 
 /* Cette fonction retourne le nombre de bloc de données libres sur le disque. */
@@ -226,16 +232,12 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 	// On trouve le numero d'i-node correspondant au nom de fichier à partir de la racine
 	int iNodeNum = getFileINodeNumFromPath(pFilename);
 	if (iNodeNum == -1) return -1;	// Le fichier/répertoire est inexistant
-	char blockData[BLOCK_SIZE];
-	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node
-	int iNodesBlockNum = BASE_BLOCK_INODE + (iNodeNum / NUM_INODE_PER_BLOCK);
-	// On trouve la position de l'i-node dans le block d'i-node
-	UINT16 iNodePosition = iNodeNum % NUM_INODE_PER_BLOCK;
-	// Lecture du block d'i-nodes
-	ReadBlock(iNodesBlockNum, blockData);
-	iNodeEntry *pINodes = (iNodeEntry *) blockData;
+	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
+	printf("inodeNum: %d\n", iNodeNum);
+	if (getINodeEntry(iNodeNum, pIE) != 0) return -1;
 	// Copie des métadonnées gstat du fichier vers le pointeur pStat
-	*pStat = pINodes[iNodePosition].iNodeStat;
+	*pStat = pIE->iNodeStat;
+	free(pIE);
 	return 0; // En cas de succès
 }
 
@@ -261,8 +263,8 @@ dépasse la taille du fichier, cette fonction devra simplement retourner 0, car 
 aucun caractère. Notez que le nombre de blocs par fichier est limité à 1, ce qui devrait simplifier le code
 de lecture. */
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
-	// TODO à compléter
 	return -1; // Si le fichier pFilename est inexistant
+
 	return -2; // Si le fichier pFilename est un répertoire
 	return 0; // Si le offset engendre un overflow
 	// return le nombre d'octets lus
