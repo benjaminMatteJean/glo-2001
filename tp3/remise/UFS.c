@@ -341,11 +341,45 @@ bd_hardlink("/tmp/a.txt","/tmp/aln.txt")
 Si le fichier pPathNouveauLien , existe déjà, retournez -2. Si le fichier pPathExistant est inexistant,
 retournez -1. Si tout se passe bien, retournez 0. */
 int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
-	// TODO à compléter
-	return -1; // Le fichier pPathExistant est inexistant
-	return -1; // Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
-	return -2; // le fichier pPathNouveauLien existe déjà
-	return -3; // Le fichier pPathExistant est un répertoire
+	// TODO: TEST
+	char dirNameNouveaulien[256];
+	GetDirFromPath(pPathNouveauLien, dirNameNouveaulien);
+	ino ino_pathExistant = getFileINodeNumFromPath(pPathExistant);
+	ino ino_dirNouveauLien = getFileINodeNumFromPath(dirNameNouveaulien);
+	if (ino_pathExistant == -1 || ino_dirNouveauLien == -1) return -1;	// Le fichier pPathExistant ou pPathNouveauLien est inexistant
+	if (getFileINodeNumFromPath(pPathNouveauLien) != -1) return -2; // le fichier pPathNouveauLien existe déjà
+	iNodeEntry *pIE_existant = (iNodeEntry *) malloc(sizeof(iNodeEntry));
+	iNodeEntry *pIE_dirNouveauLien = (iNodeEntry *) malloc(sizeof(iNodeEntry));
+	if (getINodeEntry(ino_pathExistant, pIE_existant) != 0) {
+		free(pIE_existant);
+		free(pIE_dirNouveauLien);
+		return -1;
+	}	// Le fichier pPathExistant est inexistant
+	if (getINodeEntry(ino_dirNouveauLien, pIE_dirNouveauLien) != 0) {
+		free(pIE_existant);
+		free(pIE_dirNouveauLien);
+		return -1;
+	}	// Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
+	if (pIE_dirNouveauLien->iNodeStat.st_mode & G_IFDIR) {
+		free(pIE_existant);
+		free(pIE_dirNouveauLien);
+		return -3;
+	}	// Le fichier pPathExistant est un répertoire
+
+	char blockData[BLOCK_SIZE], linkName[FILENAME_SIZE];
+	GetFilenameFromPath(pPathNouveauLien, linkName);
+	ReadBlock(pIE_dirNouveauLien->Block[0], blockData);
+	DirEntry *pDirEntries = (DirEntry *) blockData;
+	UINT16 entryNum = NumberofDirEntry(pIE_dirNouveauLien->iNodeStat.st_size);
+	DirEntry *pNewEntry = (DirEntry *) malloc(sizeof(DirEntry));
+
+	pNewEntry->iNode = pIE_existant->iNodeStat.st_ino;
+	strcpy(pNewEntry->Filename, linkName);
+	pDirEntries[entryNum] = *pNewEntry;
+	pIE_existant->iNodeStat.st_nlink++;
+
+	free(pIE_existant);
+	free(pIE_dirNouveauLien);
 	return 0; // En cas de succès
 }
 
