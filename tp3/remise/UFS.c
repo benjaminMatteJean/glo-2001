@@ -105,7 +105,7 @@ int getFileINodeNumFromParent(const char *pFileName, int parentINodeNum) {
 	ReadBlock(iNodesBlockNum, blockData);
 	iNodeEntry *pINodes = (iNodeEntry *) blockData;
 	// On trouve la position de l'i-node parent dans le block d'i-nodes
-	UINT16 iNodePosition = parentINodeNum - (parentINodeNum / NUM_INODE_PER_BLOCK) * NUM_INODE_PER_BLOCK;
+	UINT16 iNodePosition = parentINodeNum % NUM_INODE_PER_BLOCK;
 	// On trouve le nombre d'entrées dans le block de l'i-node parent
 	UINT16 entryNum = NumberofDirEntry(pINodes[iNodePosition].iNodeStat.st_size);
 	// Lecture du block de données associé à l'i-node parent
@@ -430,8 +430,15 @@ int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
 		return -1;
 	}	// Le fichier pDirLocation n'est pas un répertoire
 
+	char fileDataBlock[BLOCK_SIZE];
+	ReadBlock(pIE->Block[0], fileDataBlock);
+	*ppListeFichiers = (DirEntry*) malloc(pIE->iNodeStat.st_size);
+	memcpy((*ppListeFichiers), fileDataBlock, pIE->iNodeStat.st_size);
+
+	UINT16 entryNum = NumberofDirEntry(pIE->iNodeStat.st_size);
+
 	free(pIE);
-	// return le nombre de fichiers et sous-répertoires contenus dans ce répertoire pDirLocation (incluant . et ..);
+	return entryNum;
 }
 
 /* Cette fonction est utilisée pour créer un lien symbolique vers pPathExistant . Vous devez ainsi créer
