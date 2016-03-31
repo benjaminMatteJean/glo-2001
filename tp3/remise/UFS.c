@@ -145,6 +145,7 @@ int getInode(const char *pPath, const char *pFilename, int parentINodeNum) {
 
 /* Retourne le numero d'inode correspondant au fichier spécifié par le path */
 int getFileINodeNumFromPath(const char *pPath) {
+	if (strcmp(pPath, "/") == 0) return ROOT_INODE;
 	char pName[FILENAME_SIZE];
 	GetFilenameFromPath(pPath, pName);
 	return getInode(pPath, pName, ROOT_INODE);
@@ -254,9 +255,9 @@ pFilename est inexistant. Autrement, la fonction retourne 0. */
 int bd_stat(const char *pFilename, gstat *pStat) {
 	// On trouve le numero d'i-node correspondant au nom de fichier à partir de la racine
 	ino iNodeNum = getFileINodeNumFromPath(pFilename);
-	if (iNodeNum == -1) return -1;	// Le fichier/répertoire est inexistant
 	iNodeEntry iNode;
-	if (getINodeEntry(iNodeNum, &iNode) != 0) return -1;
+	if (iNodeNum == -1) return -1;							// Le fichier/répertoire est inexistant
+	if (getINodeEntry(iNodeNum, &iNode) != 0) return -1; 	// Le fichier/répertoire est inexistant
 	// Copie des métadonnées gstat du fichier vers le pointeur pStat
 	*pStat = iNode.iNodeStat;
 	return 0; // En cas de succès
@@ -285,8 +286,9 @@ aucun caractère. Notez que le nombre de blocs par fichier est limité à 1, ce 
 de lecture. */
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 	ino iNodeNum = getFileINodeNumFromPath(pFilename);
-	if (iNodeNum == -1) return -1;							// Le fichier pFilename est inexistant
 	iNodeEntry iNode;
+
+	if (iNodeNum == -1) return -1;							// Le fichier pFilename est inexistant
 	if (getINodeEntry(iNodeNum, &iNode) != 0) return -1;	// Le fichier pFilename est inexistant
 	if (iNode.iNodeStat.st_mode & G_IFDIR) return -2; 		// Le fichier pFilename est un répertoire
 	if (iNode.iNodeStat.st_size <= offset) return 0; 		// L'offset engendre un overflow
