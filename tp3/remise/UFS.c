@@ -99,6 +99,7 @@ void printiNode(iNodeEntry iNode) {
 
 /* Retourne le numero d'inode du fichier pFileName dans le répertoire associé au numero d'inode parentINodeNum */
 int getFileINodeNumFromParent(const char *pFileName, int parentINodeNum) {
+	if (strcmp(pFileName, "") == 0) return parentINodeNum;
 	char blockData[BLOCK_SIZE];
 	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node parent
 	int iNodesBlockNum = BASE_BLOCK_INODE + (parentINodeNum / NUM_INODE_PER_BLOCK);
@@ -147,7 +148,7 @@ int getInode(const char *pPath, const char *pFilename, int parentINodeNum) {
 int getFileINodeNumFromPath(const char *pPath) {
 	if (strcmp(pPath, "/") == 0) return ROOT_INODE;
 	char pName[FILENAME_SIZE];
-	GetFilenameFromPath(pPath, pName);
+	if (GetFilenameFromPath(pPath, pName) == 0) pName[0] = 0;
 	return getInode(pPath, pName, ROOT_INODE);
 }
 
