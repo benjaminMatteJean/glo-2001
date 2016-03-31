@@ -365,7 +365,7 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 	if (getFileINodeNumFromPath(pPathNouveauLien) != -1) return -2;	// le fichier pPathNouveauLien existe déjà
 	if (getINodeEntry(ino_existant, &IE_existant) != 0) return -1;	// Le fichier pPathExistant est inexistant
 	if (getINodeEntry(ino_dirNouveauLien, &IE_dirNouveauLien) != 0) return -1; // Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
-	if (IE_dirNouveauLien.iNodeStat.st_mode & G_IFDIR) return -3; 		// Le fichier pPathExistant est un répertoire
+	if (IE_existant.iNodeStat.st_mode & G_IFDIR) return -3; 		// Le fichier pPathExistant est un répertoire
 
 	char blockData[BLOCK_SIZE], linkName[FILENAME_SIZE];
 	GetFilenameFromPath(pPathNouveauLien, linkName);
