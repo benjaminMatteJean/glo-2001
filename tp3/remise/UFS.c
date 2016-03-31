@@ -211,6 +211,7 @@ int seizeFreeINode() {
    	return inodeNum;
 
 }
+
 /* Relâche une inode, corrige la valeur du bitmap des inodeslibres */
 int releaseFreeINode(UINT16 inodeNum) {
    	char freeINodesData[BLOCK_SIZE];
@@ -220,6 +221,18 @@ int releaseFreeINode(UINT16 inodeNum) {
    	WriteBlock(FREE_INODE_BITMAP, freeINodesData);
    	return 1;
 }
+
+/* Prend un pointeur de iNodeEntry et écrit dans l'image (met à jour) ses statistiques */
+void updateINodeStats(iNodeEntry *pIE) {
+	char blockData[BLOCK_SIZE];
+	UINT16 iNodesBlockNum = BASE_BLOCK_INODE + (pIE->iNodeStat.st_ino / NUM_INODE_PER_BLOCK);
+	UINT16 iNodePosition = pIE->iNodeStat.st_ino % NUM_INODE_PER_BLOCK;
+	ReadBlock(iNodesBlockNum, blockData);
+	iNodeEntry *pINodes = (iNodeEntry *) blockData;
+	pINodes[iNodePosition].iNodeStat = pIE->iNodeStat;
+	WriteBlock(iNodesBlockNum, blockData);
+}
+
 // FIN FONCTIONS AUXILIAIRES
 
 /* Cette fonction retourne le nombre de bloc de données libres sur le disque. */
@@ -280,11 +293,12 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 
 	char fileDataBlock[BLOCK_SIZE];
 	ReadBlock(iNode.Block[0], fileDataBlock);
-	int i = 0;
+	int i = 0, octets = 0;
 	for (i = offset; i < iNode.iNodeStat.st_size && i < (offset + numbytes); i++) {
-		buffer[i] = fileDataBlock[i];
+		buffer[octets] = fileDataBlock[i];
+		octets++;
 	}
-	return i; // retourne le nombre d'octets lus
+	return octets; // retourne le nombre d'octets lus
 }
 
 /* Cette fonction doit créer le répertoire pDirName. Si le chemin d’accès à pDirName est inexistant, ne
@@ -355,13 +369,16 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 	ReadBlock(IE_dirNouveauLien.Block[0], blockData);
 	DirEntry *pDirEntries = (DirEntry *) blockData;
 	UINT16 entryNum = NumberofDirEntry(IE_dirNouveauLien.iNodeStat.st_size);
-
 	pDirEntries[entryNum].iNode = IE_existant.iNodeStat.st_ino;
 	strcpy(pDirEntries[entryNum].Filename, linkName);
+
+	IE_dirNouveauLien.iNodeStat.st_size += sizeof(DirEntry);
 	IE_existant.iNodeStat.st_nlink++;
 
-	// TODO: WriteBlock pour IE_existant
 	WriteBlock(IE_dirNouveauLien.Block[0], blockData);
+	updateINodeStats(&IE_existant);
+	updateINodeStats(&IE_dirNouveauLien);
+
 	return 0; // En cas de succès
 }
 
