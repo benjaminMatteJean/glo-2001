@@ -256,8 +256,8 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 	// On trouve le numero d'i-node correspondant au nom de fichier à partir de la racine
 	ino iNodeNum = getFileINodeNumFromPath(pFilename);
 	iNodeEntry iNode;
-	if (iNodeNum == -1) return -1;							// Le fichier/répertoire est inexistant
-	if (getINodeEntry(iNodeNum, &iNode) != 0) return -1; 	// Le fichier/répertoire est inexistant
+	if (iNodeNum == -1) return -1;	// Le fichier/répertoire est inexistant
+	if (getINodeEntry(iNodeNum, &iNode) != 0) return -1; // Le fichier/répertoire est inexistant
 	// Copie des métadonnées gstat du fichier vers le pointeur pStat
 	*pStat = iNode.iNodeStat;
 	return 0; // En cas de succès
