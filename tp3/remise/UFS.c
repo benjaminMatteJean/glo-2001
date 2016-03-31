@@ -242,14 +242,10 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 	// On trouve le numero d'i-node correspondant au nom de fichier à partir de la racine
 	ino iNodeNum = getFileINodeNumFromPath(pFilename);
 	if (iNodeNum == -1) return -1;	// Le fichier/répertoire est inexistant
-	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
-	if (getINodeEntry(iNodeNum, pIE) != 0) {
-		free(pIE);
-		return -1;
-	}
+	iNodeEntry iNode;
+	if (getINodeEntry(iNodeNum, &iNode) != 0) return -1;
 	// Copie des métadonnées gstat du fichier vers le pointeur pStat
-	*pStat = pIE->iNodeStat;
-	free(pIE);
+	*pStat = iNode.iNodeStat;
 	return 0; // En cas de succès
 }
 
@@ -276,31 +272,19 @@ aucun caractère. Notez que le nombre de blocs par fichier est limité à 1, ce 
 de lecture. */
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 	ino iNodeNum = getFileINodeNumFromPath(pFilename);
-	if (iNodeNum == -1) return -1;	// Le fichier pFilename est inexistant
-	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
-	if (getINodeEntry(iNodeNum, pIE) != 0) {
-		free(pIE);
-		return -1;
-	}	// Le fichier pFilename est inexistant
-	if (pIE->iNodeStat.st_mode & G_IFDIR) {
-		free(pIE);
-		return -2;
-	}	// Le fichier pFilename est un répertoire
-	if (pIE->iNodeStat.st_size <= offset) {
-		free(pIE);
-		return 0;
-	}		// L'offset engendre un overflow
+	if (iNodeNum == -1) return -1;							// Le fichier pFilename est inexistant
+	iNodeEntry iNode;
+	if (getINodeEntry(iNodeNum, &iNode) != 0) return -1;	// Le fichier pFilename est inexistant
+	if (iNode.iNodeStat.st_mode & G_IFDIR) return -2; 		// Le fichier pFilename est un répertoire
+	if (iNode.iNodeStat.st_size <= offset) return 0; 		// L'offset engendre un overflow
 
 	char fileDataBlock[BLOCK_SIZE];
-	ReadBlock(pIE->Block[0], fileDataBlock);
-
+	ReadBlock(iNode.Block[0], fileDataBlock);
 	int i = 0;
-	for (i = offset; i < pIE->iNodeStat.st_size && i < (offset + numbytes); i++) {
+	for (i = offset; i < iNode.iNodeStat.st_size && i < (offset + numbytes); i++) {
 		buffer[i] = fileDataBlock[i];
 	}
-
-	free(pIE);
-	return i;
+	return i; // retourne le nombre d'octets lus
 }
 
 /* Cette fonction doit créer le répertoire pDirName. Si le chemin d’accès à pDirName est inexistant, ne
@@ -354,43 +338,30 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 	// TODO: TEST
 	char dirNameNouveaulien[256];
 	GetDirFromPath(pPathNouveauLien, dirNameNouveaulien);
-	ino ino_pathExistant = getFileINodeNumFromPath(pPathExistant);
+
+	ino ino_existant = getFileINodeNumFromPath(pPathExistant);
 	ino ino_dirNouveauLien = getFileINodeNumFromPath(dirNameNouveaulien);
-	if (ino_pathExistant == -1 || ino_dirNouveauLien == -1) return -1;	// Le fichier pPathExistant ou pPathNouveauLien est inexistant
-	if (getFileINodeNumFromPath(pPathNouveauLien) != -1) return -2; // le fichier pPathNouveauLien existe déjà
-	iNodeEntry *pIE_existant = (iNodeEntry *) malloc(sizeof(iNodeEntry));
-	iNodeEntry *pIE_dirNouveauLien = (iNodeEntry *) malloc(sizeof(iNodeEntry));
-	if (getINodeEntry(ino_pathExistant, pIE_existant) != 0) {
-		free(pIE_existant);
-		free(pIE_dirNouveauLien);
-		return -1;
-	}	// Le fichier pPathExistant est inexistant
-	if (getINodeEntry(ino_dirNouveauLien, pIE_dirNouveauLien) != 0) {
-		free(pIE_existant);
-		free(pIE_dirNouveauLien);
-		return -1;
-	}	// Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
-	if (pIE_dirNouveauLien->iNodeStat.st_mode & G_IFDIR) {
-		free(pIE_existant);
-		free(pIE_dirNouveauLien);
-		return -3;
-	}	// Le fichier pPathExistant est un répertoire
+	iNodeEntry IE_existant;
+	iNodeEntry IE_dirNouveauLien;
+
+	if (ino_existant == -1 || ino_dirNouveauLien == -1) return -1;	// Le fichier pPathExistant ou pPathNouveauLien est inexistant
+	if (getFileINodeNumFromPath(pPathNouveauLien) != -1) return -2;	// le fichier pPathNouveauLien existe déjà
+	if (getINodeEntry(ino_existant, &IE_existant) != 0) return -1;	// Le fichier pPathExistant est inexistant
+	if (getINodeEntry(ino_dirNouveauLien, &IE_dirNouveauLien) != 0) return -1; // Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
+	if (IE_dirNouveauLien.iNodeStat.st_mode & G_IFDIR) return -3; 		// Le fichier pPathExistant est un répertoire
 
 	char blockData[BLOCK_SIZE], linkName[FILENAME_SIZE];
 	GetFilenameFromPath(pPathNouveauLien, linkName);
-	ReadBlock(pIE_dirNouveauLien->Block[0], blockData);
+	ReadBlock(IE_dirNouveauLien.Block[0], blockData);
 	DirEntry *pDirEntries = (DirEntry *) blockData;
-	UINT16 entryNum = NumberofDirEntry(pIE_dirNouveauLien->iNodeStat.st_size);
+	UINT16 entryNum = NumberofDirEntry(IE_dirNouveauLien.iNodeStat.st_size);
 
-	DirEntry *pNewEntry = (DirEntry *) malloc(sizeof(DirEntry));
+	pDirEntries[entryNum].iNode = IE_existant.iNodeStat.st_ino;
+	strcpy(pDirEntries[entryNum].Filename, linkName);
+	IE_existant.iNodeStat.st_nlink++;
 
-	pNewEntry->iNode = pIE_existant->iNodeStat.st_ino;
-	strcpy(pNewEntry->Filename, linkName);
-	pDirEntries[entryNum] = *pNewEntry;
-	pIE_existant->iNodeStat.st_nlink++;
-
-	free(pIE_existant);
-	free(pIE_dirNouveauLien);
+	// TODO: WriteBlock pour IE_existant
+	WriteBlock(IE_dirNouveauLien.Block[0], blockData);
 	return 0; // En cas de succès
 }
 
@@ -463,28 +434,23 @@ bd_readdir retourne comme valeur le nombre de fichiers et sous-répertoires cont
 répertoire pDirLocation (incluant . et ..). S’il y a une erreur, retourner -1. L’appelant sera en charge
 de désallouer la mémoire via free . */
 int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
+	// TODO: test
 	ino iNodeNum = getFileINodeNumFromPath(pDirLocation);
-	if (iNodeNum == -1) return -1;	// Le fichier pDirLocation est inexistant
-	iNodeEntry *pIE = (iNodeEntry *) malloc(sizeof(iNodeEntry));
-	if (getINodeEntry(iNodeNum, pIE) != 0) {
-		free(pIE);
-		return -1;
-	}	// Le fichier pDirLocation est inexistant
-	if (!(pIE->iNodeStat.st_mode & G_IFDIR)) {
-		free(pIE);
-		return -1;
-	}	// Le fichier pDirLocation n'est pas un répertoire
+	iNodeEntry iNode;
+
+	if (iNodeNum == -1) return -1;							// Le fichier pDirLocation est inexistant
+	if (getINodeEntry(iNodeNum, &iNode) != 0)  return -1; 	// Le fichier pDirLocation est inexistant
+	if (!(iNode.iNodeStat.st_mode & G_IFDIR)) return -1; 	// Le fichier pDirLocation n'est pas un répertoire
 
 	char fileDataBlock[BLOCK_SIZE];
-	ReadBlock(pIE->Block[0], fileDataBlock);
+	ReadBlock(iNode.Block[0], fileDataBlock);
 
-	*ppListeFichiers = (DirEntry*) malloc(pIE->iNodeStat.st_size);
-	memcpy((*ppListeFichiers), fileDataBlock, pIE->iNodeStat.st_size);
+	*ppListeFichiers = (DirEntry*) malloc(iNode.iNodeStat.st_size);
+	memcpy((*ppListeFichiers), fileDataBlock, iNode.iNodeStat.st_size);
 
-	UINT16 entryNum = NumberofDirEntry(pIE->iNodeStat.st_size);
+	UINT16 entryNum = NumberofDirEntry(iNode.iNodeStat.st_size);
 
-	free(pIE);
-	return entryNum;
+	return entryNum; // Retourne le nombre d'entrées du répertoire
 }
 
 /* Cette fonction est utilisée pour créer un lien symbolique vers pPathExistant . Vous devez ainsi créer
