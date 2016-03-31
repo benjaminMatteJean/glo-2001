@@ -97,6 +97,7 @@ void printiNode(iNodeEntry iNode) {
 
 // FONCTIONS AUXILIAIRES
 
+/* Retourne le numero d'inode du fichier pFileName dans le répertoire associé au numero d'inode parentINodeNum */
 int getFileINodeNumFromParent(const char *pFileName, int parentINodeNum) {
 	char blockData[BLOCK_SIZE];
 	// On trouve le numero du block d'i-nodes qui contient le numero d'i-node parent
@@ -120,6 +121,7 @@ int getFileINodeNumFromParent(const char *pFileName, int parentINodeNum) {
 	return -1;	// Le nom de fichier/répertoire n'existe pas
 }
 
+/* Fait une récursion sur le path pPath et retourne le numéro d'inode du fichier pFilename */
 int getInode(const char *pPath, const char *pFilename, int parentINodeNum) {
 	if (parentINodeNum == -1) return -1;
 
@@ -141,12 +143,14 @@ int getInode(const char *pPath, const char *pFilename, int parentINodeNum) {
 	}
 }
 
+/* Retourne le numero d'inode correspondant au fichier spécifié par le path */
 int getFileINodeNumFromPath(const char *pPath) {
 	char pName[FILENAME_SIZE];
 	GetFilenameFromPath(pPath, pName);
 	return getInode(pPath, pName, ROOT_INODE);
 }
 
+/* Assigne un inodeEntry correspondant au numero d'inode iNodeNum au pointeur pIE */
 int getINodeEntry(ino iNodeNum, iNodeEntry *pIE) {
 	if (iNodeNum > N_INODE_ON_DISK || iNodeNum < 0) return -1;
 	char blockData[BLOCK_SIZE];
@@ -161,6 +165,8 @@ int getINodeEntry(ino iNodeNum, iNodeEntry *pIE) {
 	return 0;
 }
 
+/* Saisi un block libre, corrige la valeur du bitmap des blockslibres
+Retourne le numero du block saisi */
 int seizeFreeBlock() {
    	char freeBlocksData[BLOCK_SIZE];
    	ReadBlock(FREE_BLOCK_BITMAP, freeBlocksData);
@@ -177,6 +183,7 @@ int seizeFreeBlock() {
    	return blockNum;
 }
 
+/* Relâche un block, corrige la valeur du bitmap des blockslibres */
 int releaseFreeBlock(UINT16 blockNum) {
 	char freeBlocksData[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP, freeBlocksData);
@@ -186,6 +193,8 @@ int releaseFreeBlock(UINT16 blockNum) {
 	return 1;
 }
 
+/* Saisi une inode, corrige la valeur du bitmap des inodeslibres
+	Retourne le numero d'inode de l'inode saisie */
 int seizeFreeINode() {
    	char freeINodesData[BLOCK_SIZE];
    	ReadBlock(FREE_BLOCK_BITMAP, freeINodesData);
@@ -200,8 +209,9 @@ int seizeFreeINode() {
    	printf("GLOFS: Saisie i-node %d\n",inodeNum);
    	WriteBlock(FREE_BLOCK_BITMAP, freeINodesData);
    	return inodeNum;
-}
 
+}
+/* Relâche une inode, corrige la valeur du bitmap des inodeslibres */
 int releaseFreeINode(UINT16 inodeNum) {
    	char freeINodesData[BLOCK_SIZE];
    	ReadBlock(FREE_INODE_BITMAP, freeINodesData);
@@ -371,6 +381,7 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 	ReadBlock(pIE_dirNouveauLien->Block[0], blockData);
 	DirEntry *pDirEntries = (DirEntry *) blockData;
 	UINT16 entryNum = NumberofDirEntry(pIE_dirNouveauLien->iNodeStat.st_size);
+
 	DirEntry *pNewEntry = (DirEntry *) malloc(sizeof(DirEntry));
 
 	pNewEntry->iNode = pIE_existant->iNodeStat.st_ino;
@@ -466,6 +477,7 @@ int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
 
 	char fileDataBlock[BLOCK_SIZE];
 	ReadBlock(pIE->Block[0], fileDataBlock);
+
 	*ppListeFichiers = (DirEntry*) malloc(pIE->iNodeStat.st_size);
 	memcpy((*ppListeFichiers), fileDataBlock, pIE->iNodeStat.st_size);
 
