@@ -113,7 +113,8 @@ int getFileINodeNumFromParent(const char *pFileName, int parentINodeNum) {
 	ReadBlock(pINodes[iNodePosition].Block[0], blockData);
 	DirEntry *pDE = (DirEntry *) blockData;
 	// Pour chaque entrée du block (sauf . et ..) on vérifie le nom de fichier
-	for (size_t n = 2; n < entryNum; n++) {
+	size_t n;
+	for (n = 2; n < entryNum; n++) {
 		if (strcmp(pFileName, pDE[n].Filename) == 0) {
 			return pDE[n].iNode;	// On a trouvé le numéro d'i-node correspondant au nom de fichier/repertoire
 		}
