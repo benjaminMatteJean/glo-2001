@@ -157,21 +157,21 @@ cp google-go.png.orig google-go.png
 # #echo "-----------------------------------------------------------------------"
 # #./ufs read /b.txt 500 30
 #
-echo
-echo
-echo "--------------------------------------------------------------------"
-echo "                    Tester la commande hardlink"
-echo "--------------------------------------------------------------------"
-echo "Le nombre de blocs libre ne doit pas changer"
-./ufs blockfree; N_FREEBLOCK=$?;
-echo -e "\nDoit réussir:"
-./ufs hardlink /b.txt /hlnb.txt
-echo -e "\nDoit échouer avec -2, car hlnb.txt existe déjà:"
-./ufs hardlink /b.txt /hlnb.txt
-echo -e "\nDoit afficher $N_FREEBLOCK blocs de libre:"
-./ufs blockfree
-echo -e "\nDoit afficher les mêmes numéros d'i-node pour /b.txt et /hlnb.txt:"
-./ufs ls /
+# echo
+# echo
+# echo "--------------------------------------------------------------------"
+# echo "                    Tester la commande hardlink"
+# echo "--------------------------------------------------------------------"
+# echo "Le nombre de blocs libre ne doit pas changer"
+# ./ufs blockfree; N_FREEBLOCK=$?;
+# echo -e "\nDoit réussir:"
+# ./ufs hardlink /b.txt /hlnb.txt
+# echo -e "\nDoit échouer avec -2, car hlnb.txt existe déjà:"
+# ./ufs hardlink /b.txt /hlnb.txt
+# echo -e "\nDoit afficher $N_FREEBLOCK blocs de libre:"
+# ./ufs blockfree
+# echo -e "\nDoit afficher les mêmes numéros d'i-node pour /b.txt et /hlnb.txt:"
+# ./ufs ls /
 #
 # echo
 # echo

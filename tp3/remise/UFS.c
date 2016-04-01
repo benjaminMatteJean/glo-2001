@@ -352,7 +352,6 @@ bd_hardlink("/tmp/a.txt","/tmp/aln.txt")
 Si le fichier pPathNouveauLien , existe déjà, retournez -2. Si le fichier pPathExistant est inexistant,
 retournez -1. Si tout se passe bien, retournez 0. */
 int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
-	// TODO: TEST
 	char dirNameNouveaulien[256];
 	GetDirFromPath(pPathNouveauLien, dirNameNouveaulien);
 
@@ -454,7 +453,6 @@ bd_readdir retourne comme valeur le nombre de fichiers et sous-répertoires cont
 répertoire pDirLocation (incluant . et ..). S’il y a une erreur, retourner -1. L’appelant sera en charge
 de désallouer la mémoire via free . */
 int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
-	// TODO: test
 	ino iNodeNum = getFileINodeNumFromPath(pDirLocation);
 	iNodeEntry iNode;
 
