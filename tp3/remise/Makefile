@@ -3,18 +3,18 @@ cleanufs: clean
 
 ufsTest: UFS.o mainTest.o DisqueStegano.o lodepng.o
 	gcc mainTest.o UFS.o DisqueStegano.o lodepng.o -o ufsTest
-	
+
 ufs_complet: UFS_remise.o main_ufs.o DisqueStegano.o lodepng.o
 	gcc main_ufs.o UFS_remise.o DisqueStegano.o lodepng.o -o ufs_complet
 
 TestsUnitaires : UFS.o TestsUnitaires.o DisqueStegano.o lodepng.o
 	gcc TestsUnitaires.o UFS.o DisqueStegano.o lodepng.o -o TestsUnitaires
 
-ufs: UFS.o main_ufs.o DisqueStegano.o lodepng.o
+ufs: UFS.o main_ufs.o DisqueStegano.o lodepng.o image
 	gcc main_ufs.o UFS.o DisqueStegano.o lodepng.o  -g -o ufs
 
 glofs: glofs.c UFS.o DisqueStegano.o
-	gcc -D_FILE_OFFSET_BITS=64 -Wall glofs.c UFS.o DisqueStegano.o lodepng.o -o glofs -g -lfuse 
+	gcc -D_FILE_OFFSET_BITS=64 -Wall glofs.c UFS.o DisqueStegano.o lodepng.o -o glofs -g -lfuse
 
 TestsUnitaires.o: TestsUnitaires.c
 	gcc -c -g TestsUnitaires.c
@@ -35,10 +35,13 @@ TestDisqueStegano: lodepng.o DisqueStegano.o TestDisqueStegano.c
 	gcc -g lodepng.o DisqueStegano.o TestDisqueStegano.c -o TestDisqueStegano -lrt
 
 DisqueStegano.o: DisqueStegano.c
-	gcc -g -c DisqueStegano.c -o DisqueStegano.o 
+	gcc -g -c DisqueStegano.c -o DisqueStegano.o
 
 lodepng.o: lodepng.c lodepng.h
-	gcc -g -c lodepng.c -o lodepng.o 
+	gcc -g -c lodepng.c -o lodepng.o
 
-clean: 
-	rm -f *.o ufs ufsTest glofs prompt TestsUnitaires TestDisqueStegano *.*~
+image: google-go.png.orig
+	cp google-go.png.orig google-go.png
+
+clean:
+	rm -f *.o ufs google-go.png ufsTest glofs prompt TestsUnitaires TestDisqueStegano *.*~
