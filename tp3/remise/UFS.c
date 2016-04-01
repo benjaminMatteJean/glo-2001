@@ -114,7 +114,8 @@ int getFileINodeNumFromParent(const char *pFileName, int parentINodeNum) {
 	ReadBlock(pINodes[iNodePosition].Block[0], blockData);
 	DirEntry *pDE = (DirEntry *) blockData;
 	// Pour chaque entrée du block (sauf . et ..) on vérifie le nom de fichier
-	for (size_t n = 0; n < entryNum; n++) {
+	size_t n;
+	for (n = 0; n < entryNum; n++) {
 		if (strcmp(pFileName, pDE[n].Filename) == 0) {
 			return pDE[n].iNode;	// On a trouvé le numéro d'i-node correspondant au nom de fichier/repertoire
 		}
@@ -271,9 +272,40 @@ pFilename est égal à /doc/tmp/a.txt , vous devez créer le fichier a.txt dans 
 déjà, auquel cas retournez -2. Pour les permissions rwx, simplement les mettre toutes à 1, en faisant
 st_mode|=G_IRWXU|G_IRWXG . Retournez 0 pour indiquer le succès de l’opération. */
 int bd_create(const char *pFilename) {
-	// TODO à compléter
-	return -1; // Si le répertoire n'existe pas
-	return -2; // Si le fichier existe déjà
+	char strDirectory[BLOCK_SIZE];
+	char strFile[BLOCK_SIZE];
+	ino dirInode , fileInode = 0;
+
+
+	GetDirFromPath(pFilename, strDirectory);
+	GetFilenameFromPath(pFilename, strFile);
+	printf("%s\n", strDirectory);
+	printf("%s\n", strFile);
+	dirInode = getFileINodeNumFromPath(strDirectory);
+	printf("%d\n", dirInode);
+	if (dirInode == -1) {
+		return -1;
+	}
+
+	fileInode = getFileINodeNumFromPath(strFile);
+	printf("%d\n", fileInode);
+	if(fileInode != -1) {
+		return -2;
+	}
+
+	fileInode = seizeFreeINode();
+	printf("%d\n", fileInode);
+	iNodeEntry  pINode;
+	getINodeEntry(fileInode, &pINode);
+	pINode.iNodeStat.st_mode = G_IFREG;
+	pINode.iNodeStat.st_size = 0;
+	pINode.iNodeStat.st_ino = fileInode;
+	pINode.iNodeStat.st_nlink = 1;
+	pINode.iNodeStat.st_blocks = 0;
+	pINode.iNodeStat.st_mode = pINode.iNodeStat.st_mode | G_IRWXU | G_IRWXG;
+
+	updateINodeStats(&pINode);
+
 	return 0; // En cas de succès
 }
 
