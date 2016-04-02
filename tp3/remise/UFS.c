@@ -605,11 +605,9 @@ int bd_rename(const char *pFilename, const char *pDestFilename) {
 		iNodeEntry destDirInode;
 		iNodeEntry filenameInode;
 
+
 		ino filenameIno = getFileINodeNumFromPath(pFilename);
 		if (filenameIno == -1) return -1;
-
-		ino destFilenameIno = getFileINodeNumFromPath(pDestFilename);
-		if (destFilenameIno != -1) return -1;
 
 		if(GetDirFromPath(pFilename, directorySource) == 0) return -1;
 		if(GetDirFromPath(pDestFilename, directoryDest) == 0) return -1;
@@ -618,37 +616,38 @@ int bd_rename(const char *pFilename, const char *pDestFilename) {
 		ino directorySourceIno = getFileINodeNumFromPath(directorySource);
 		if(directorySourceIno == -1) return -1;
 
-		ino directoryDestIno = getFileINodeNumFromPath(directoryDest);
-		if(directorySourceIno == -1) return -1;
+		ino destFilenameIno = getFileINodeNumFromPath(pDestFilename);
+		if (destFilenameIno != -1) return -1;
 
+		destFilenameIno = getFileINodeNumFromPath(directoryDest);
+		if(destFilenameIno == -1) return -1;
 
-		if(getINodeEntry(directorySourceIno, &sourceDirInode) == -1) return -1;
-
+		if(getINodeEntry(directorySourceIno, &sourceDirInode) != 0) return -1;
 		removeDirEntryInDir(&sourceDirInode, filenameIno);
 
 		// Décrémenter le nombre de link
+		if(getINodeEntry(directorySourceIno, &sourceDirInode) != 0) return -1;
 		sourceDirInode.iNodeStat.st_nlink--;
 		writeINodeOnDisk(&sourceDirInode);
 
-		if(getINodeEntry(directoryDestIno, &destDirInode) == -1) return -1;
-
+		if(getINodeEntry(destFilenameIno, &destDirInode) != 0) return -1;
 		addDirEntryInDir(&destDirInode,filenameIno,filename);
 
 		// Augmenter le  nb de link
+		if(getINodeEntry(destFilenameIno, &destDirInode) != 0) return -1;
 		destDirInode.iNodeStat.st_nlink++;
 		writeINodeOnDisk(&destDirInode);
 
-		if(getINodeEntry(destFilenameIno, &filenameInode) == -1) return -1;
+		if(getINodeEntry(destFilenameIno, &filenameInode) !=  0) return -1;
 		char block[BLOCK_SIZE];
 		UINT16 blockNum = filenameInode.Block[0];
 		ReadBlock(blockNum, block);
 		DirEntry * pDirEntry = (DirEntry *) block;
 		pDirEntry++;
-		pDirEntry->iNode = filenameIno;
+		pDirEntry->iNode = destFilenameIno;
 		WriteBlock(blockNum,block);
 
 		return 0;
-
 	}
 }
 
