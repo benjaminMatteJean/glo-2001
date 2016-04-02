@@ -225,7 +225,7 @@ int releaseFreeINode(UINT16 inodeNum) {
    	return 1;
 }
 
-/* Prend un pointeur de iNodeEntry et écrit dans l'image (met à jour) ses statistiques */
+/* Prend un pointeur de iNodeEntry et écrit dans l'image (met à jour) l'inode */
 void writeINodeOnDisk(iNodeEntry *pIE) {
 	char blockData[BLOCK_SIZE];
 	UINT16 iNodesBlockNum = BASE_BLOCK_INODE + (pIE->iNodeStat.st_ino / NUM_INODE_PER_BLOCK);
@@ -560,13 +560,25 @@ int bd_symlink(const char *pPathExistant, const char *pPathNouveauLien) {
 }
 
 /* Cette fonction est utilisée pour copier le contenu d’un lien symbolique pPathLien , dans le buffer
-pBuffer de taille sizeBuffer . Ce contenu est une chaîne de caractère représentant le path du fichier
+pBuffer de taille sizeBuffer. Ce contenu est une chaîne de caractère représentant le path du fichier
 sur lequel ce lien symbolique pointe. Cette fonction permettra ainsi au système de fichier, une fois
 montée dans Linux, de déréférencer les liens symboliques. Si le fichier pPathLien n’existe pas ou qu’il
 n’est pas un lien symbolique, retournez -1. Sinon, retournez le nombre de caractères lus. */
 int bd_readlink(const char *pPathLien, char *pBuffer, int sizeBuffer) {
-	// TODO à compléter
-    return -1; // Si le fichier pPathLien est inexistant
-    return -1; // Si le fichier pPathLien n'est pas un lien symbolique
-	// return le nombre de caractères lus;
+	// TODO: test
+	ino iNodeNum = getFileINodeNumFromPath(pPathLien);
+	iNodeEntry iNode;
+
+	if (iNodeNum == -1) return -1;							// Le fichier pPathLien est inexistant
+	if (getINodeEntry(iNodeNum, &iNode) != 0)  return -1; 	// Le fichier pPathLien est inexistant
+	if (!(iNode.iNodeStat.st_mode & G_IFDIR)) return -1; 	// Le fichier pPathLien n'est pas un lien symbolique
+
+	char fileDataBlock[BLOCK_SIZE];
+	ReadBlock(iNode.Block[0], fileDataBlock);
+	int iCar = 0;
+	for (iCar = 0; iCar < iNode.iNodeStat.st_size && iCar < sizeBuffer; iCar++) {
+		pBuffer[iCar] = fileDataBlock[iCar];
+	}
+
+	return iCar; // Le nombre de caractères lus;
 }
