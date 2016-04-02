@@ -416,7 +416,7 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 	return 0; // En cas de succès
 }
 
-/* Cette fonction sert à retirer un fichier normal ( G_IFREG 5 à 1) du répertoire dans lequel il est contenu. Le
+/* Cette fonction sert à retirer un fichier normal ( G_IFREG à 1) du répertoire dans lequel il est contenu. Le
 retrait se fait en décrémentant de 1 le nombre de lien ( st_nlink ) dans l’i-node du fichier pFilename
 et en détruisant l’entrée dans le fichier répertoire dans lequel pFilename se situe. Si st_nlink tombe
 à zéro, vous devrez libérer cet i-node et ses blocs de données associés. Si après bd_unlink le nombre
@@ -426,9 +426,47 @@ n’est pas à la fin de ce tableau. Si pFilename n’existe pas retournez -1. S
 G_IFREG , retournez -2. Autrement, retourner 0 pour indiquer le succès.
 *Un lien symbolique est aussi un fichier régulier. Il faudra donc le retirer du répertoire.* */
 int bd_unlink(const char *pFilename) {
-	// TODO à compléter
-	return -1; // Si pFilename n'existe pas
-	return -2; // Le fichier n'est pas un fichier régulier G_IFREG
+	char dirName[256], fileName[FILENAME_SIZE];
+	GetDirFromPath(pFilename, dirName);
+	GetFilenameFromPath(pFilename, fileName);
+
+	ino fileINodeNum = getFileINodeNumFromPath(pFilename);
+	ino dirINodeNum = getFileINodeNumFromPath(dirName);
+	iNodeEntry IE_file;
+	iNodeEntry IE_dir;
+
+	if (fileINodeNum == -1 || dirINodeNum == -1) return -1; 	// Si pFilename ou dirName n'existe pas
+	if (getINodeEntry(fileINodeNum, &IE_file) != 0) return -1;	// Le fichier pFilename est inexistant
+	if (getINodeEntry(dirINodeNum, &IE_dir) != 0) return -1;	// Le répertoire qui contient le fichier pFilename est inexistant
+	if (IE_file.iNodeStat.st_mode & G_IFDIR) return -2; 		// Le fichier n'est pas un fichier régulier G_IFREG ni un lien symbolique G_IFLNK
+
+	char blockData[BLOCK_SIZE];
+	ReadBlock(IE_dir.Block[0], blockData);
+	DirEntry *pDirEntries = (DirEntry *) blockData;
+	UINT16 entryNum = NumberofDirEntry(IE_dir.iNodeStat.st_size);
+	for (size_t iEntry = 0; iEntry < entryNum; iEntry++) {
+		if (strcmp(pDirEntries[iEntry].Filename, fileName) == 0) {
+			if (iEntry != entryNum - 1) {
+				for (size_t iNext = 1; iNext < entryNum - iEntry; iNext++) {
+					pDirEntries[iEntry + iNext - 1] = pDirEntries[iEntry + iNext];
+				}
+				break;
+			}
+		}
+	}
+	WriteBlock(IE_dir.Block[0], blockData);
+
+	IE_dir.iNodeStat.st_size -= sizeof(DirEntry);
+	updateINodeStats(&IE_dir);
+
+	IE_file.iNodeStat.st_nlink--;
+	if (IE_file.iNodeStat.st_nlink == 0) {
+		if (IE_file.iNodeStat.st_blocks > 0) releaseFreeBlock(IE_file.Block[0]);
+		releaseFreeINode(fileINodeNum);
+	} else {
+		updateINodeStats(&IE_file);
+	}
+
 	return 0; // En cas de succès
 }
 
