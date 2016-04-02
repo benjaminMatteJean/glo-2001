@@ -226,13 +226,13 @@ int releaseFreeINode(UINT16 inodeNum) {
 }
 
 /* Prend un pointeur de iNodeEntry et écrit dans l'image (met à jour) ses statistiques */
-void updateINodeStats(iNodeEntry *pIE) {
+void writeINodeOnDisk(iNodeEntry *pIE) {
 	char blockData[BLOCK_SIZE];
 	UINT16 iNodesBlockNum = BASE_BLOCK_INODE + (pIE->iNodeStat.st_ino / NUM_INODE_PER_BLOCK);
 	UINT16 iNodePosition = pIE->iNodeStat.st_ino % NUM_INODE_PER_BLOCK;
 	ReadBlock(iNodesBlockNum, blockData);
 	iNodeEntry *pINodes = (iNodeEntry *) blockData;
-	pINodes[iNodePosition].iNodeStat = pIE->iNodeStat;
+	pINodes[iNodePosition] = *pIE;
 	WriteBlock(iNodesBlockNum, blockData);
 }
 
@@ -304,7 +304,7 @@ int bd_create(const char *pFilename) {
 	pINode.iNodeStat.st_blocks = 0;
 	pINode.iNodeStat.st_mode = pINode.iNodeStat.st_mode | G_IRWXU | G_IRWXG;
 
-	updateINodeStats(&pINode);
+	writeINodeOnDisk(&pINode);
 
 	return 0; // En cas de succès
 }
@@ -410,8 +410,8 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 	IE_existant.iNodeStat.st_nlink++;
 
 	WriteBlock(IE_dirNouveauLien.Block[0], blockData);
-	updateINodeStats(&IE_existant);
-	updateINodeStats(&IE_dirNouveauLien);
+	writeINodeOnDisk(&IE_existant);
+	writeINodeOnDisk(&IE_dirNouveauLien);
 
 	return 0; // En cas de succès
 }
@@ -457,14 +457,14 @@ int bd_unlink(const char *pFilename) {
 	WriteBlock(IE_dir.Block[0], blockData);
 
 	IE_dir.iNodeStat.st_size -= sizeof(DirEntry);
-	updateINodeStats(&IE_dir);
+	writeINodeOnDisk(&IE_dir);
 
 	IE_file.iNodeStat.st_nlink--;
 	if (IE_file.iNodeStat.st_nlink == 0) {
 		if (IE_file.iNodeStat.st_blocks > 0) releaseFreeBlock(IE_file.Block[0]);
 		releaseFreeINode(fileINodeNum);
 	} else {
-		updateINodeStats(&IE_file);
+		writeINodeOnDisk(&IE_file);
 	}
 
 	return 0; // En cas de succès
