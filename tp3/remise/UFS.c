@@ -531,10 +531,21 @@ taille actuelle comme valeur. N’oubliez-pas de marquer comme libre les blocs l
 fonction, si le changement de taille est tel que certains blocs sont devenus inutiles. Dans notre cas,
 ce sera si on tronque à la taille 0. */
 int bd_truncate(const char *pFilename, int NewSize) {
-	// TODO à compléter
-	return -1; // Le fichier pFilename est inexistant
-	return -2; // Si pFilename est un répertoire
-	// return la nouvelle taille du fichier;
+	iNodeEntry filenameInode;
+	ino filenameIno = getFileINodeNumFromPath(pFilename);
+	int returnSize;
+	if (filenameIno == -1) return -1;							// Le fichier pFilename est inexistant
+	if (getINodeEntry(filenameIno, &filenameInode) != 0) return -1;	// Le fichier pFilename est inexistant
+	if (filenameInode.iNodeStat.st_mode & G_IFDIR) return -2; 		// Le fichier pFilename est un répertoire
+
+	if(filenameInode.iNodeStat.st_size < NewSize) return filenameInode.iNodeStat.st_size;
+
+	if(NewSize == 0) releaseFreeBlock(filenameInode.Block[0]);
+	filenameInode.iNodeStat.st_size = NewSize;
+	returnSize = filenameInode.iNodeStat.st_size;
+	writeINodeOnDisk(&filenameInode);
+
+	return returnSize;
 }
 
 /* Cette fonction sert à effacer un répertoire vide, i.e. s’il ne contient pas d’autre chose que les deux
