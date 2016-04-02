@@ -236,6 +236,55 @@ void writeINodeOnDisk(iNodeEntry *pIE) {
 	WriteBlock(iNodesBlockNum, blockData);
 }
 
+
+void addDirEntryInDir(iNodeEntry * destDirInode, ino inodeNum, char * filename) {
+	DirEntry *pDirEntry;
+	char block[BLOCK_SIZE];
+
+
+	destDirInode->iNodeStat.st_size += sizeof(DirEntry);
+	writeINodeOnDisk(destDirInode);
+
+	UINT16 inodeSize = destDirInode->iNodeStat.st_size;
+	int nbDirEntry = NumberofDirEntry(inodeSize);
+	UINT16 blockNum = destDirInode->Block[0];
+
+	ReadBlock(blockNum, block);
+	pDirEntry = (DirEntry *) block;
+
+	pDirEntry += nbDirEntry - 1;
+	pDirEntry->iNode = inodeNum;
+	strcpy(pDirEntry->Filename, filename);
+
+	WriteBlock(blockNum, block);
+
+}
+
+void removeDirEntryInDir(iNodeEntry * iNodeDir , ino inoToDelete) {
+	UINT16 size_inode = iNodeDir->iNodeStat.st_size;
+	iNodeDir->iNodeStat.st_size -= BLOCK_SIZE / sizeof(DirEntry);
+
+	writeINodeOnDisk(iNodeDir);
+
+	UINT16 blockNum = iNodeDir->Block[0];
+	char block[BLOCK_SIZE];
+	ReadBlock(blockNum, block);
+
+	DirEntry * pDirEntry = (DirEntry *) block;
+	int findIndicator = 0;
+	int i;
+	int count = NumberofDirEntry(size_inode);
+	for (i = 0; i < count; i++) {
+		if (pDirEntry[i].iNode == inoToDelete) {
+			findIndicator = 1;
+		}
+		if (findIndicator == 1) {
+			pDirEntry[i] = pDirEntry[i + 1];
+		}
+	}
+	WriteBlock(blockNum, block);
+}
+
 // FIN FONCTIONS AUXILIAIRES
 
 /* Cette fonction retourne le nombre de bloc de données libres sur le disque. */
@@ -301,28 +350,13 @@ int bd_create(const char *pFilename) {
 
 	writeINodeOnDisk(&pINode);
 
+
 	iNodeEntry pInodeDir;
 	DirEntry *pDirEntry;
 	char block[BLOCK_SIZE];
-
 	getINodeEntry(dirInode, &pInodeDir);
 
-
-	pInodeDir.iNodeStat.st_size += sizeof(DirEntry);
-	writeINodeOnDisk(&pInodeDir);
-
-	UINT16 inodeSize = pInodeDir.iNodeStat.st_size;
-	int nbDirEntry = NumberofDirEntry(inodeSize);
-	UINT16 blockNum = pInodeDir.Block[0];
-
-	ReadBlock(blockNum, block);
-	pDirEntry = (DirEntry *) block;
-
-	pDirEntry += nbDirEntry - 1;
-	pDirEntry->iNode = fileInode;
-	strcpy(pDirEntry->Filename, strFile);
-
-	WriteBlock(blockNum, block);
+	addDirEntryInDir(&pInodeDir, fileInode, strFile);
 
 	return 0; // En cas de succès
 }
@@ -527,10 +561,73 @@ inexistant, retournez -1. Pour vous simplifier la vie, vous n’avez pas besoin 
 fichier déplacé pFilename est un répertoire, et la destination pFilenameDest est un sous-répertoire
 de celui-ci. */
 int bd_rename(const char *pFilename, const char *pDestFilename) {
-	// TODO à compléter
-	return -1; // Le fichier pFilename est inexistant
-	return -1; // Le répertoire pDestFilename est inexistant
-	return 0; // En cas de succès
+
+	// Succès s'il s'agit du mêmem fichier dans le même répertoire.
+	if(strcmp(pFilename, pDestFilename) ==0) {
+		return 0;
+	}
+
+	int state = bd_hardlink(pFilename, pDestFilename);
+
+	if (state == 0) {
+		bd_unlink(pFilename);
+		return 0;
+	} else if (state == -2 || state == -1) {
+		return -1;
+	} else {
+		// Il s'agit d'un répertoire
+		char directorySource[BLOCK_SIZE];
+		char directoryDest[BLOCK_SIZE];
+		char filename[BLOCK_SIZE];
+		iNodeEntry sourceDirInode;
+		iNodeEntry destDirInode;
+		iNodeEntry filenameInode;
+
+		ino filenameIno = getFileINodeNumFromPath(pFilename);
+		if (filenameIno == -1) return -1;
+
+		ino destFilenameIno = getFileINodeNumFromPath(pDestFilename);
+		if (destFilenameIno != -1) return -1;
+
+		if(GetDirFromPath(pFilename, directorySource) == 0) return -1;
+		if(GetDirFromPath(pDestFilename, directoryDest) == 0) return -1;
+		if(GetFilenameFromPath(pDestFilename, filename) == 0) return -1;
+
+		ino directorySourceIno = getFileINodeNumFromPath(directorySource);
+		if(directorySourceIno == -1) return -1;
+		
+		ino directoryDestIno = getFileINodeNumFromPath(directoryDest);
+		if(directorySourceIno == -1) return -1;
+
+
+		if(getINodeEntry(directorySourceIno, &sourceDirInode) == -1) return -1;
+
+		removeDirEntryInDir(&sourceDirInode, filenameIno);
+
+		// Décrémenter le nombre de link
+		sourceDirInode.iNodeStat.st_nlink--;
+		writeINodeOnDisk(&sourceDirInode);
+
+		if(getINodeEntry(directoryDestIno, &destDirInode) == -1) return -1;
+
+		addDirEntryInDir(&destDirInode,filenameIno,filename);
+
+		// Augmenter le  nb de link
+		destDirInode.iNodeStat.st_nlink++;
+		writeINodeOnDisk(&destDirInode);
+
+		if(getINodeEntry(destFilenameIno, &filenameInode) == -1) return -1;
+		char block[BLOCK_SIZE];
+		UINT16 blockNum = filenameInode.Block[0];
+		ReadBlock(blockNum, block);
+		DirEntry * pDirEntry = (DirEntry *) block;
+		pDirEntry++;
+		pDirEntry->iNode = filenameIno;
+		WriteBlock(blockNum,block);
+
+		return 0;
+
+	}
 }
 
 /* Cette fonction est utilisée pour permettre la lecture du contenu du répertoire pDirLocation . Si le
