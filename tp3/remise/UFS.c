@@ -322,7 +322,7 @@ déjà, auquel cas retournez -2. Pour les permissions rwx, simplement les mettre
 st_mode|=G_IRWXU|G_IRWXG . Retournez 0 pour indiquer le succès de l’opération. */
 int bd_create(const char *pFilename) {
 	char strDirectory[BLOCK_SIZE];
-	char strFile[BLOCK_SIZE];
+	char strFile[FILENAME_SIZE];
 	ino dirInode , fileInode = 0;
 
 
@@ -542,10 +542,32 @@ répertoires « . » et « .. ». Si le répertoire n’est pas vide, ne faites 
 décrémenter st_nlink pour le répertoire parent « .. ». Si le répertoire est inexistant, retourner -1. Si
 c’est un fichier régulier, retournez -2. Autrement, retournez 0 pour indiquer le succès. */
 int bd_rmdir(const char *pFilename) {
-	// TODO à compléter
-	return -1; // Si le répertoire pFilename st inexistant
-	return -2; // si pFilename est un fichier régulier
-	return -3; // Si le répertore n'est pas vide
+
+	char dirName[256], fileName[FILENAME_SIZE];
+	GetDirFromPath(pFilename, dirName);
+	GetFilenameFromPath(pFilename, fileName);
+
+	ino fileINodeNum = getFileINodeNumFromPath(pFilename);
+	ino dirINodeNum = getFileINodeNumFromPath(dirName);
+
+	if (fileINodeNum == -1 || dirINodeNum == -1) return -1;
+
+	iNodeEntry filenameInode , dirInode;
+
+	if(getINodeEntry(fileINodeNum, &filenameInode) != 0) return -1;
+	if(getINodeEntry(dirINodeNum, &dirInode)) return -1;
+
+	if(filenameInode.iNodeStat.st_mode & G_IFREG) return -2;
+
+	if(NumberofDirEntry(filenameInode.iNodeStat.st_size) > 2) return -3;
+
+	removeDirEntryInDir(&dirInode, fileINodeNum);
+
+	dirInode.iNodeStat.st_nlink--;
+	writeINodeOnDisk(&dirInode);
+
+	releaseFreeINode(fileINodeNum);
+
 	return 0; // En cas de succès
 }
 
@@ -595,7 +617,7 @@ int bd_rename(const char *pFilename, const char *pDestFilename) {
 
 		ino directorySourceIno = getFileINodeNumFromPath(directorySource);
 		if(directorySourceIno == -1) return -1;
-		
+
 		ino directoryDestIno = getFileINodeNumFromPath(directoryDest);
 		if(directorySourceIno == -1) return -1;
 
