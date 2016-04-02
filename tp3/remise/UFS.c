@@ -279,22 +279,17 @@ int bd_create(const char *pFilename) {
 
 	GetDirFromPath(pFilename, strDirectory);
 	GetFilenameFromPath(pFilename, strFile);
-	printf("%s\n", strDirectory);
-	printf("%s\n", strFile);
 	dirInode = getFileINodeNumFromPath(strDirectory);
-	printf("%d\n", dirInode);
 	if (dirInode == -1) {
 		return -1;
 	}
 
 	fileInode = getFileINodeNumFromPath(strFile);
-	printf("%d\n", fileInode);
 	if(fileInode != -1) {
 		return -2;
 	}
 
 	fileInode = seizeFreeINode();
-	printf("%d\n", fileInode);
 	iNodeEntry  pINode;
 	getINodeEntry(fileInode, &pINode);
 	pINode.iNodeStat.st_mode = G_IFREG;
@@ -305,6 +300,29 @@ int bd_create(const char *pFilename) {
 	pINode.iNodeStat.st_mode = pINode.iNodeStat.st_mode | G_IRWXU | G_IRWXG;
 
 	writeINodeOnDisk(&pINode);
+
+	iNodeEntry pInodeDir;
+	DirEntry *pDirEntry;
+	char block[BLOCK_SIZE];
+
+	getINodeEntry(dirInode, &pInodeDir);
+
+
+	pInodeDir.iNodeStat.st_size += sizeof(DirEntry);
+	writeINodeOnDisk(&pInodeDir);
+
+	UINT16 inodeSize = pInodeDir.iNodeStat.st_size;
+	int nbDirEntry = NumberofDirEntry(inodeSize);
+	UINT16 blockNum = pInodeDir.Block[0];
+
+	ReadBlock(blockNum, block);
+	pDirEntry = (DirEntry *) block;
+
+	pDirEntry += nbDirEntry - 1;
+	pDirEntry->iNode = fileInode;
+	strcpy(pDirEntry->Filename, strFile);
+
+	WriteBlock(blockNum, block);
 
 	return 0; // En cas de succès
 }
@@ -444,10 +462,12 @@ int bd_unlink(const char *pFilename) {
 	ReadBlock(IE_dir.Block[0], blockData);
 	DirEntry *pDirEntries = (DirEntry *) blockData;
 	UINT16 entryNum = NumberofDirEntry(IE_dir.iNodeStat.st_size);
-	for (size_t iEntry = 0; iEntry < entryNum; iEntry++) {
+	size_t iEntry;
+	size_t iNext;
+	for (iEntry = 0; iEntry < entryNum; iEntry++) {
 		if (strcmp(pDirEntries[iEntry].Filename, fileName) == 0) {
 			if (iEntry != entryNum - 1) {
-				for (size_t iNext = 1; iNext < entryNum - iEntry; iNext++) {
+				for (iNext = 1; iNext < entryNum - iEntry; iNext++) {
 					pDirEntries[iEntry + iNext - 1] = pDirEntries[iEntry + iNext];
 				}
 				break;
