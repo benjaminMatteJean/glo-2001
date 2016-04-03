@@ -200,7 +200,7 @@ int releaseFreeBlock(UINT16 blockNum) {
 	Retourne le numero d'inode de l'inode saisie */
 int seizeFreeINode() {
    	char freeINodesData[BLOCK_SIZE];
-   	ReadBlock(FREE_BLOCK_BITMAP, freeINodesData);
+   	ReadBlock(FREE_INODE_BITMAP, freeINodesData);
    	int inodeNum = ROOT_INODE;
    	while (freeINodesData[inodeNum] == 0 && inodeNum < N_INODE_ON_DISK) {
    		inodeNum++;
@@ -397,9 +397,55 @@ st_mode|=G_IRWXU|G_IRWXG . Assurez-vous aussi que le répertoire contiennent les
 suivants : « . » et « .. ». N’oubliez-pas d’incrémenter st_nlink pour le répertoire actuel « . » et parent
 « .. ». En cas de succès, retournez 0. */
 int bd_mkdir(const char *pDirName) {
-	// TODO à compléter
-	return -1; // Si le chemin d'accès pDirName est inexistant
-	return -2; // Si le répertoire pDirName existe déjà
+	char dirName[FILENAME_SIZE];
+	char filename[FILENAME_SIZE];
+
+	ino dirNameIno = getFileINodeNumFromPath(pDirName);
+	if(dirNameIno != -1) return -2; // Il existe déjà.
+
+	if(GetDirFromPath(pDirName, dirName) == 0) return -1;
+	if(GetFilenameFromPath(pDirName,filename) == 0) return -1;
+
+
+	ino parentDirIno = getFileINodeNumFromPath(dirName);
+	if (parentDirIno == -1) return -1;
+	iNodeEntry parentInode;
+
+	if(getINodeEntry(parentDirIno, &parentInode) != 0) return -1;
+
+	if(parentInode.iNodeStat.st_mode & G_IFREG) return -1;
+
+	iNodeEntry newInode;
+	ino newInodeIno = seizeFreeINode();
+	if(newInodeIno == -1) return -1;
+	getINodeEntry(newInodeIno, &newInode);
+	int blockNumber = seizeFreeBlock();
+	if(blockNumber == -1) return -1;
+
+	parentInode.iNodeStat.st_nlink++;
+	writeINodeOnDisk(&parentInode);
+	addDirEntryInDir(&parentInode, newInodeIno, filename);
+
+	getINodeEntry(newInodeIno, &newInode);
+	newInode.Block[0] = blockNumber;
+	newInode.iNodeStat.st_ino = newInodeIno;
+	newInode.iNodeStat.st_mode = G_IFDIR | G_IRWXU | G_IRWXG;
+	newInode.iNodeStat.st_nlink = 2;
+	newInode.iNodeStat.st_size = sizeof(DirEntry) * 2;
+	newInode.iNodeStat.st_blocks = 1;
+	writeINodeOnDisk(&newInode);
+
+	// On remplie le block
+	char block[BLOCK_SIZE];
+	ReadBlock(blockNumber, block);
+	DirEntry * pDirEntry = (DirEntry *) block;
+	pDirEntry->iNode = newInodeIno;
+	strcpy(pDirEntry->Filename, ".");
+	pDirEntry++;
+	pDirEntry->iNode = parentDirIno;
+	strcpy(pDirEntry->Filename, "..");
+	WriteBlock(blockNumber, block);
+
 	return 0; // En cas de succès
 }
 
