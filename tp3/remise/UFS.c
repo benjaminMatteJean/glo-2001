@@ -210,7 +210,7 @@ int seizeFreeINode() {
    	}
    	freeINodesData[inodeNum] = 0;
    	printf("GLOFS: Saisie i-node %d\n",inodeNum);
-   	WriteBlock(FREE_BLOCK_BITMAP, freeINodesData);
+   	WriteBlock(FREE_INODE_BITMAP, freeINodesData);
    	return inodeNum;
 
 }
@@ -464,12 +464,46 @@ devez quand même écrire le plus possible dans le fichier, jusqu’à atteindre
 fonction retournera ce nombre d’octet écrit.
 N’oubliez-pas de modifier la taille du fichier st_size . */
 int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) {
-	// TODO à compléter
-	return -1; // Si le fichier pFilename est inexistant
-	return -2; // Si pFilename est un répertoire
-	return -3; // Si l'offset est supérieur ou égal à la taille du fichier (engendre un overflow)
-	return -4; // Si l'offset est supérieur ou égal à la taille maximale supportée
-	// return le nombre d’octets écrits;
+	int octetsWrite = 0;
+	iNodeEntry fileInode;
+	ino filenameIno = getFileINodeNumFromPath(pFilename);
+	if(filenameIno == -1) return -1; // Il n'existe pas.
+
+	if(getINodeEntry(filenameIno, &fileInode) != 0) return -1;
+
+	if(fileInode.iNodeStat.st_mode & G_IFDIR) return -2;
+
+	if(fileInode.iNodeStat.st_size < offset &&  offset >= N_BLOCK_PER_INODE*BLOCK_SIZE) return -4;
+
+	if(fileInode.iNodeStat.st_size < offset) return -3;
+
+	if(fileInode.iNodeStat.st_size == 0 && numbytes != 0) {
+		int blockNum = seizeFreeBlock();
+		if(blockNum == -1) return 0; // On fait quoi avec plus de block disponible.
+		fileInode.Block[0] = blockNum;
+		fileInode.iNodeStat.st_blocks += 1;
+	}
+
+	char fileDataBlock[BLOCK_SIZE];
+	ReadBlock(fileInode.Block[0], fileDataBlock);
+	int i = 0, octets = 0;
+	for (i = offset; i < (offset + numbytes) && i <= BLOCK_SIZE; i++) {
+		printf("%c - %c - offset : %d\n", fileDataBlock[i], buffer[octets], i);
+
+		if(fileDataBlock[i] != buffer[octets]) {
+			fileDataBlock[i] = buffer[octets];
+			octets++;
+		}
+	}
+
+	WriteBlock(fileInode.Block[0] , fileDataBlock);
+	if(offset + octets > fileInode.iNodeStat.st_size) {
+		fileInode.iNodeStat.st_size = offset + octets;
+	}
+
+	writeINodeOnDisk(&fileInode);
+
+	return octets;
 }
 
 /* Cette fonction créer un hardlink entre l’i-node du fichier pPathExistant et le nom de fichier
