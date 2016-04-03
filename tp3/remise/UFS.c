@@ -485,14 +485,26 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 	}
 
 	char fileDataBlock[BLOCK_SIZE];
+	char newBuffer[BLOCK_SIZE];
 	ReadBlock(fileInode.Block[0], fileDataBlock);
-	int i = 0, octets = 0;
-	for (i = offset; i < (offset + numbytes) && i <= BLOCK_SIZE; i++) {
-		fileDataBlock[i] = buffer[octets];
-		octets++;
+	int i = 0, octets = 0 , cpt = 0;
+
+	// Copier les élements dans le nouveau buffer.
+	for (i = 0; i < fileInode.iNodeStat.st_size; i++) {
+		newBuffer[i] = fileDataBlock[i];
 	}
 
-	WriteBlock(fileInode.Block[0] , fileDataBlock);
+	// Write de l'offset voulu jusqu'au nombre de numbytes.
+	for (i = offset; i < (offset + numbytes) && i <= BLOCK_SIZE && cpt <= numbytes; i++) {
+		if(newBuffer[i] != buffer[cpt]) {
+			newBuffer[i] = buffer[cpt];
+			octets++;
+		}
+		cpt++;
+	}
+
+	// Écrire la nouvelle valeur du block
+	WriteBlock(fileInode.Block[0] , newBuffer);
 	if(offset + octets > fileInode.iNodeStat.st_size) {
 		fileInode.iNodeStat.st_size = offset + octets;
 	}
