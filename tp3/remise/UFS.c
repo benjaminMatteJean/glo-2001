@@ -488,12 +488,8 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 	ReadBlock(fileInode.Block[0], fileDataBlock);
 	int i = 0, octets = 0;
 	for (i = offset; i < (offset + numbytes) && i <= BLOCK_SIZE; i++) {
-		printf("%c - %c - offset : %d\n", fileDataBlock[i], buffer[octets], i);
-
-		if(fileDataBlock[i] != buffer[octets]) {
-			fileDataBlock[i] = buffer[octets];
-			octets++;
-		}
+		fileDataBlock[i] = buffer[octets];
+		octets++;
 	}
 
 	WriteBlock(fileInode.Block[0] , fileDataBlock);
