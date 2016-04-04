@@ -200,7 +200,7 @@ int releaseFreeBlock(UINT16 blockNum) {
 	Retourne le numero d'inode de l'inode saisie */
 int seizeFreeINode() {
    	char freeINodesData[BLOCK_SIZE];
-   	ReadBlock(FREE_BLOCK_BITMAP, freeINodesData);
+   	ReadBlock(FREE_INODE_BITMAP, freeINodesData);
    	int inodeNum = ROOT_INODE;
    	while (freeINodesData[inodeNum] == 0 && inodeNum < N_INODE_ON_DISK) {
    		inodeNum++;
@@ -210,7 +210,7 @@ int seizeFreeINode() {
    	}
    	freeINodesData[inodeNum] = 0;
    	printf("GLOFS: Saisie i-node %d\n",inodeNum);
-   	WriteBlock(FREE_BLOCK_BITMAP, freeINodesData);
+   	WriteBlock(FREE_INODE_BITMAP, freeINodesData);
    	return inodeNum;
 
 }
@@ -234,6 +234,55 @@ void writeINodeOnDisk(iNodeEntry *pIE) {
 	iNodeEntry *pINodes = (iNodeEntry *) blockData;
 	pINodes[iNodePosition] = *pIE;
 	WriteBlock(iNodesBlockNum, blockData);
+}
+
+
+void addDirEntryInDir(iNodeEntry * destDirInode, ino inodeNum, char * filename) {
+	DirEntry *pDirEntry;
+	char block[BLOCK_SIZE];
+
+
+	destDirInode->iNodeStat.st_size += sizeof(DirEntry);
+	writeINodeOnDisk(destDirInode);
+
+	UINT16 inodeSize = destDirInode->iNodeStat.st_size;
+	int nbDirEntry = NumberofDirEntry(inodeSize);
+	UINT16 blockNum = destDirInode->Block[0];
+
+	ReadBlock(blockNum, block);
+	pDirEntry = (DirEntry *) block;
+
+	pDirEntry += nbDirEntry - 1;
+	pDirEntry->iNode = inodeNum;
+	strcpy(pDirEntry->Filename, filename);
+
+	WriteBlock(blockNum, block);
+
+}
+
+void removeDirEntryInDir(iNodeEntry * iNodeDir , ino inoToDelete) {
+	UINT16 size_inode = iNodeDir->iNodeStat.st_size;
+	iNodeDir->iNodeStat.st_size -= BLOCK_SIZE / sizeof(DirEntry);
+
+	writeINodeOnDisk(iNodeDir);
+
+	UINT16 blockNum = iNodeDir->Block[0];
+	char block[BLOCK_SIZE];
+	ReadBlock(blockNum, block);
+
+	DirEntry * pDirEntry = (DirEntry *) block;
+	int findIndicator = 0;
+	int i;
+	int count = NumberofDirEntry(size_inode);
+	for (i = 0; i < count; i++) {
+		if (pDirEntry[i].iNode == inoToDelete) {
+			findIndicator = 1;
+		}
+		if (findIndicator == 1) {
+			pDirEntry[i] = pDirEntry[i + 1];
+		}
+	}
+	WriteBlock(blockNum, block);
 }
 
 // FIN FONCTIONS AUXILIAIRES
@@ -273,28 +322,23 @@ déjà, auquel cas retournez -2. Pour les permissions rwx, simplement les mettre
 st_mode|=G_IRWXU|G_IRWXG . Retournez 0 pour indiquer le succès de l’opération. */
 int bd_create(const char *pFilename) {
 	char strDirectory[BLOCK_SIZE];
-	char strFile[BLOCK_SIZE];
+	char strFile[FILENAME_SIZE];
 	ino dirInode , fileInode = 0;
 
 
 	GetDirFromPath(pFilename, strDirectory);
 	GetFilenameFromPath(pFilename, strFile);
-	printf("%s\n", strDirectory);
-	printf("%s\n", strFile);
 	dirInode = getFileINodeNumFromPath(strDirectory);
-	printf("%d\n", dirInode);
 	if (dirInode == -1) {
 		return -1;
 	}
 
 	fileInode = getFileINodeNumFromPath(strFile);
-	printf("%d\n", fileInode);
 	if(fileInode != -1) {
 		return -2;
 	}
 
 	fileInode = seizeFreeINode();
-	printf("%d\n", fileInode);
 	iNodeEntry  pINode;
 	getINodeEntry(fileInode, &pINode);
 	pINode.iNodeStat.st_mode = G_IFREG;
@@ -305,6 +349,14 @@ int bd_create(const char *pFilename) {
 	pINode.iNodeStat.st_mode = pINode.iNodeStat.st_mode | G_IRWXU | G_IRWXG;
 
 	writeINodeOnDisk(&pINode);
+
+
+	iNodeEntry pInodeDir;
+	DirEntry *pDirEntry;
+	char block[BLOCK_SIZE];
+	getINodeEntry(dirInode, &pInodeDir);
+
+	addDirEntryInDir(&pInodeDir, fileInode, strFile);
 
 	return 0; // En cas de succès
 }
@@ -345,9 +397,55 @@ st_mode|=G_IRWXU|G_IRWXG . Assurez-vous aussi que le répertoire contiennent les
 suivants : « . » et « .. ». N’oubliez-pas d’incrémenter st_nlink pour le répertoire actuel « . » et parent
 « .. ». En cas de succès, retournez 0. */
 int bd_mkdir(const char *pDirName) {
-	// TODO à compléter
-	return -1; // Si le chemin d'accès pDirName est inexistant
-	return -2; // Si le répertoire pDirName existe déjà
+	char dirName[FILENAME_SIZE];
+	char filename[FILENAME_SIZE];
+
+	ino dirNameIno = getFileINodeNumFromPath(pDirName);
+	if(dirNameIno != -1) return -2; // Il existe déjà.
+
+	if(GetDirFromPath(pDirName, dirName) == 0) return -1;
+	if(GetFilenameFromPath(pDirName,filename) == 0) return -1;
+
+
+	ino parentDirIno = getFileINodeNumFromPath(dirName);
+	if (parentDirIno == -1) return -1;
+	iNodeEntry parentInode;
+
+	if(getINodeEntry(parentDirIno, &parentInode) != 0) return -1;
+
+	if(parentInode.iNodeStat.st_mode & G_IFREG) return -1;
+
+	iNodeEntry newInode;
+	ino newInodeIno = seizeFreeINode();
+	if(newInodeIno == -1) return -1;
+	getINodeEntry(newInodeIno, &newInode);
+	int blockNumber = seizeFreeBlock();
+	if(blockNumber == -1) return -1;
+
+	parentInode.iNodeStat.st_nlink++;
+	writeINodeOnDisk(&parentInode);
+	addDirEntryInDir(&parentInode, newInodeIno, filename);
+
+	getINodeEntry(newInodeIno, &newInode);
+	newInode.Block[0] = blockNumber;
+	newInode.iNodeStat.st_ino = newInodeIno;
+	newInode.iNodeStat.st_mode = G_IFDIR | G_IRWXU | G_IRWXG;
+	newInode.iNodeStat.st_nlink = 2;
+	newInode.iNodeStat.st_size = sizeof(DirEntry) * 2;
+	newInode.iNodeStat.st_blocks = 1;
+	writeINodeOnDisk(&newInode);
+
+	// On remplie le block
+	char block[BLOCK_SIZE];
+	ReadBlock(blockNumber, block);
+	DirEntry * pDirEntry = (DirEntry *) block;
+	pDirEntry->iNode = newInodeIno;
+	strcpy(pDirEntry->Filename, ".");
+	pDirEntry++;
+	pDirEntry->iNode = parentDirIno;
+	strcpy(pDirEntry->Filename, "..");
+	WriteBlock(blockNumber, block);
+
 	return 0; // En cas de succès
 }
 
@@ -366,12 +464,54 @@ devez quand même écrire le plus possible dans le fichier, jusqu’à atteindre
 fonction retournera ce nombre d’octet écrit.
 N’oubliez-pas de modifier la taille du fichier st_size . */
 int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) {
-	// TODO à compléter
-	return -1; // Si le fichier pFilename est inexistant
-	return -2; // Si pFilename est un répertoire
-	return -3; // Si l'offset est supérieur ou égal à la taille du fichier (engendre un overflow)
-	return -4; // Si l'offset est supérieur ou égal à la taille maximale supportée
-	// return le nombre d’octets écrits;
+	int octetsWrite = 0;
+	iNodeEntry fileInode;
+	ino filenameIno = getFileINodeNumFromPath(pFilename);
+	if(filenameIno == -1) return -1; // Il n'existe pas.
+
+	if(getINodeEntry(filenameIno, &fileInode) != 0) return -1;
+
+	if(fileInode.iNodeStat.st_mode & G_IFDIR) return -2;
+
+	if(fileInode.iNodeStat.st_size < offset &&  offset >= N_BLOCK_PER_INODE*BLOCK_SIZE) return -4;
+
+	if(fileInode.iNodeStat.st_size < offset) return -3;
+
+	if(fileInode.iNodeStat.st_size == 0 && numbytes != 0) {
+		int blockNum = seizeFreeBlock();
+		if(blockNum == -1) return 0; // On fait quoi avec plus de block disponible.
+		fileInode.Block[0] = blockNum;
+		fileInode.iNodeStat.st_blocks += 1;
+	}
+
+	char fileDataBlock[BLOCK_SIZE];
+	char newBuffer[BLOCK_SIZE];
+	ReadBlock(fileInode.Block[0], fileDataBlock);
+	int i = 0, octets = 0 , cpt = 0;
+
+	// Copier les élements dans le nouveau buffer.
+	for (i = 0; i < fileInode.iNodeStat.st_size; i++) {
+		newBuffer[i] = fileDataBlock[i];
+	}
+
+	// Write de l'offset voulu jusqu'au nombre de numbytes.
+	for (i = offset; i < (offset + numbytes) && i <= BLOCK_SIZE && cpt <= numbytes; i++) {
+		printf("%c-%c\n",newBuffer[i],buffer[cpt]);
+		if(newBuffer[i] != buffer[cpt]) {
+			newBuffer[i] = buffer[cpt];
+			octets++;
+		}
+		cpt++;
+	}
+	// Écrire la nouvelle valeur du block
+	WriteBlock(fileInode.Block[0] , newBuffer);
+	if(offset + octets > fileInode.iNodeStat.st_size) {
+		fileInode.iNodeStat.st_size = offset + octets;
+	}
+
+	writeINodeOnDisk(&fileInode);
+
+	return octets;
 }
 
 /* Cette fonction créer un hardlink entre l’i-node du fichier pPathExistant et le nom de fichier
@@ -444,10 +584,12 @@ int bd_unlink(const char *pFilename) {
 	ReadBlock(IE_dir.Block[0], blockData);
 	DirEntry *pDirEntries = (DirEntry *) blockData;
 	UINT16 entryNum = NumberofDirEntry(IE_dir.iNodeStat.st_size);
-	for (size_t iEntry = 0; iEntry < entryNum; iEntry++) {
+	size_t iEntry;
+	size_t iNext;
+	for (iEntry = 0; iEntry < entryNum; iEntry++) {
 		if (strcmp(pDirEntries[iEntry].Filename, fileName) == 0) {
 			if (iEntry != entryNum - 1) {
-				for (size_t iNext = 1; iNext < entryNum - iEntry; iNext++) {
+				for (iNext = 1; iNext < entryNum - iEntry; iNext++) {
 					pDirEntries[iEntry + iNext - 1] = pDirEntries[iEntry + iNext];
 				}
 				break;
@@ -477,10 +619,21 @@ taille actuelle comme valeur. N’oubliez-pas de marquer comme libre les blocs l
 fonction, si le changement de taille est tel que certains blocs sont devenus inutiles. Dans notre cas,
 ce sera si on tronque à la taille 0. */
 int bd_truncate(const char *pFilename, int NewSize) {
-	// TODO à compléter
-	return -1; // Le fichier pFilename est inexistant
-	return -2; // Si pFilename est un répertoire
-	// return la nouvelle taille du fichier;
+	iNodeEntry filenameInode;
+	ino filenameIno = getFileINodeNumFromPath(pFilename);
+	int returnSize;
+	if (filenameIno == -1) return -1;							// Le fichier pFilename est inexistant
+	if (getINodeEntry(filenameIno, &filenameInode) != 0) return -1;	// Le fichier pFilename est inexistant
+	if (filenameInode.iNodeStat.st_mode & G_IFDIR) return -2; 		// Le fichier pFilename est un répertoire
+
+	if(filenameInode.iNodeStat.st_size < NewSize) return filenameInode.iNodeStat.st_size;
+
+	if(NewSize == 0) releaseFreeBlock(filenameInode.Block[0]);
+	filenameInode.iNodeStat.st_size = NewSize;
+	returnSize = filenameInode.iNodeStat.st_size;
+	writeINodeOnDisk(&filenameInode);
+
+	return returnSize;
 }
 
 /* Cette fonction sert à effacer un répertoire vide, i.e. s’il ne contient pas d’autre chose que les deux
@@ -488,10 +641,32 @@ répertoires « . » et « .. ». Si le répertoire n’est pas vide, ne faites 
 décrémenter st_nlink pour le répertoire parent « .. ». Si le répertoire est inexistant, retourner -1. Si
 c’est un fichier régulier, retournez -2. Autrement, retournez 0 pour indiquer le succès. */
 int bd_rmdir(const char *pFilename) {
-	// TODO à compléter
-	return -1; // Si le répertoire pFilename st inexistant
-	return -2; // si pFilename est un fichier régulier
-	return -3; // Si le répertore n'est pas vide
+
+	char dirName[256], fileName[FILENAME_SIZE];
+	GetDirFromPath(pFilename, dirName);
+	GetFilenameFromPath(pFilename, fileName);
+
+	ino fileINodeNum = getFileINodeNumFromPath(pFilename);
+	ino dirINodeNum = getFileINodeNumFromPath(dirName);
+
+	if (fileINodeNum == -1 || dirINodeNum == -1) return -1;
+
+	iNodeEntry filenameInode , dirInode;
+
+	if(getINodeEntry(fileINodeNum, &filenameInode) != 0) return -1;
+	if(getINodeEntry(dirINodeNum, &dirInode)) return -1;
+
+	if(filenameInode.iNodeStat.st_mode & G_IFREG) return -2;
+
+	if(NumberofDirEntry(filenameInode.iNodeStat.st_size) > 2) return -3;
+
+	removeDirEntryInDir(&dirInode, fileINodeNum);
+
+	dirInode.iNodeStat.st_nlink--;
+	writeINodeOnDisk(&dirInode);
+
+	releaseFreeINode(fileINodeNum);
+
 	return 0; // En cas de succès
 }
 
@@ -507,10 +682,72 @@ inexistant, retournez -1. Pour vous simplifier la vie, vous n’avez pas besoin 
 fichier déplacé pFilename est un répertoire, et la destination pFilenameDest est un sous-répertoire
 de celui-ci. */
 int bd_rename(const char *pFilename, const char *pDestFilename) {
-	// TODO à compléter
-	return -1; // Le fichier pFilename est inexistant
-	return -1; // Le répertoire pDestFilename est inexistant
-	return 0; // En cas de succès
+
+	// Succès s'il s'agit du mêmem fichier dans le même répertoire.
+	if(strcmp(pFilename, pDestFilename) ==0) {
+		return 0;
+	}
+
+	int state = bd_hardlink(pFilename, pDestFilename);
+
+	if (state == 0) {
+		bd_unlink(pFilename);
+		return 0;
+	} else if (state == -2 || state == -1) {
+		return -1;
+	} else {
+		// Il s'agit d'un répertoire
+		char directorySource[BLOCK_SIZE];
+		char directoryDest[BLOCK_SIZE];
+		char filename[BLOCK_SIZE];
+		iNodeEntry sourceDirInode;
+		iNodeEntry destDirInode;
+		iNodeEntry filenameInode;
+
+
+		ino filenameIno = getFileINodeNumFromPath(pFilename);
+		if (filenameIno == -1) return -1;
+
+		if(GetDirFromPath(pFilename, directorySource) == 0) return -1;
+		if(GetDirFromPath(pDestFilename, directoryDest) == 0) return -1;
+		if(GetFilenameFromPath(pDestFilename, filename) == 0) return -1;
+
+		ino directorySourceIno = getFileINodeNumFromPath(directorySource);
+		if(directorySourceIno == -1) return -1;
+
+		ino destFilenameIno = getFileINodeNumFromPath(pDestFilename);
+		if (destFilenameIno != -1) return -1;
+
+		destFilenameIno = getFileINodeNumFromPath(directoryDest);
+		if(destFilenameIno == -1) return -1;
+
+		if(getINodeEntry(directorySourceIno, &sourceDirInode) != 0) return -1;
+		removeDirEntryInDir(&sourceDirInode, filenameIno);
+
+		// Décrémenter le nombre de link
+		if(getINodeEntry(directorySourceIno, &sourceDirInode) != 0) return -1;
+		sourceDirInode.iNodeStat.st_nlink--;
+		writeINodeOnDisk(&sourceDirInode);
+
+		if(getINodeEntry(destFilenameIno, &destDirInode) != 0) return -1;
+		addDirEntryInDir(&destDirInode,filenameIno,filename);
+
+		// Augmenter le  nb de link
+		if(getINodeEntry(destFilenameIno, &destDirInode) != 0) return -1;
+		destDirInode.iNodeStat.st_nlink++;
+		writeINodeOnDisk(&destDirInode);
+
+		if(getINodeEntry(destFilenameIno, &filenameInode) !=  0) return -1;
+		char block[BLOCK_SIZE];
+		UINT16 blockNum = filenameInode.Block[0];
+		ReadBlock(blockNum, block);
+		DirEntry * pDirEntry = (DirEntry *) block;
+		pDirEntry++;
+		pDirEntry->iNode = destFilenameIno;
+		WriteBlock(blockNum,block);
+
+		return 0;
+	}
 }
 
 /* Cette fonction est utilisée pour permettre la lecture du contenu du répertoire pDirLocation . Si le
@@ -553,9 +790,30 @@ la commande ./ufs read /slnb.txt 0 40 , cette lecture retournera /b.txt et non p
 de b.txt . La commande suivante bd_readlink sera utilisée par le système d’exploitation pour faire le
 déréférencement du lien symbolique, plus tard quand nous allons le monter dans Linux avec FUSE. */
 int bd_symlink(const char *pPathExistant, const char *pPathNouveauLien) {
-	// TODO à compléter
-	return -1; // Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
-	return -2; // Si le fichier pPathNouveauLien existe déjà
+	ino inoFile = getFileINodeNumFromPath(pPathExistant);
+	char destinationDir[BLOCK_SIZE];
+	char filenameDest[BLOCK_SIZE];
+	iNodeEntry newSymlinkInode;
+	iNodeEntry symlinkFileInode;
+
+	if(GetDirFromPath(pPathNouveauLien, destinationDir) == 0) return -1;
+	if(GetFilenameFromPath(pPathNouveauLien, filenameDest) == 0) return -1;
+
+	ino newSymlinkIno = getFileINodeNumFromPath(pPathNouveauLien);
+	if(getINodeEntry(newSymlinkIno, &newSymlinkInode) == 0) return -2;
+
+	bd_create(pPathNouveauLien);
+	newSymlinkIno = getFileINodeNumFromPath(pPathNouveauLien);
+	if(getINodeEntry(newSymlinkIno, &newSymlinkInode) != 0) return -1;
+
+	getINodeEntry(inoFile, &symlinkFileInode);
+
+	newSymlinkInode.iNodeStat.st_mode |= G_IFLNK | G_IFREG;
+	writeINodeOnDisk(&newSymlinkInode);
+
+ 	bd_write(pPathNouveauLien, pPathExistant,0,strlen(pPathExistant));
+
+
 	return 0; // En cas de succès
 }
 

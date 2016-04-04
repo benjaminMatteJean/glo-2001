@@ -68,18 +68,18 @@ echo -e "\nDoit échouer avec -1, car hlnb.txt n'est pas un lien symbolique:"
 # ./ufs read /toto.txt 0 10
 # ./ufs read /b.txt 0 10
 #
-# echo
-# echo
-# echo "--------------------------------------------------------------------"
-# echo "    test de tronquage"
-# echo "--------------------------------------------------------------------"
-# ./ufs truncate /mauvais.txt 5
-# ./ufs truncate /doc 6
-# ./ufs truncate /b.txt 5
-# ./ufs read /b.txt 0 10
-# echo "On doit libérer un bloc de données pour la prochaine opération"
-# ./ufs truncate /b.txt 0
-#
+ echo
+ echo
+ echo "--------------------------------------------------------------------"
+ echo "    test de tronquage"
+ echo "--------------------------------------------------------------------"
+ ./ufs truncate /mauvais.txt 5
+ ./ufs truncate /doc 6
+ ./ufs truncate /b.txt 5
+ ./ufs read /b.txt 0 10
+ echo "On doit libérer un bloc de données pour la prochaine opération"
+ ./ufs truncate /b.txt 0
+
 # echo
 # echo
 # echo "--------------------------------------------------------------------"
@@ -196,44 +196,44 @@ echo -e "\nDoit échouer avec -1, car hlnb.txt n'est pas un lien symbolique:"
 # echo -e "\nDoit échouer avec -2, car /doc est un répertoire:"
 # ./ufs unlink /doc
 #
-# echo
-# echo
-# echo "--------------------------------------------------------------------"
-# echo "                    Tester la commande rmdir"
-# echo "--------------------------------------------------------------------"
-# ./ufs blockfree; N_FREEBLOCK=$?;
-# ./ufs rmdir /rep
-# ./ufs ls /
-# let "N_FREEBLOCK=$N_FREEBLOCK+1"
-# echo -e "\nDoit afficher $N_FREEBLOCK blocs de libre, car le fichier répertoire a été libéré:"
-# ./ufs blockfree
-# echo -e "\nDoit échouer avec -3, car /doc n'est pas vide:."
-# ./ufs rmdir /doc
-# ./ufs ls /
-# echo -e "\nDoit échouer avec -3, car /doc/tmp n'est pas vide:"
-# ./ufs rmdir /doc/tmp
-#
-# echo
-# echo
-# echo "--------------------------------------------------------------------"
-# echo "              Tester la création d'un fichier vide"
-# echo "--------------------------------------------------------------------"
-# ./ufs create /Doge.wow
-# ./ufs ls /
-# ./ufs create /doc/tmp/new.txt
-# ./ufs ls /
-# ./ufs ls /doc/tmp
-#
-# echo
-# echo
-# echo "--------------------------------------------------------------------"
-# echo "          Tester la fonction rename sur fichier ordinaire"
-# echo "--------------------------------------------------------------------"
-# ./ufs rename /Bonjour/LesAmis.txt /Bonjour/OncleG.txt
-# ./ufs ls /Bonjour
-# ./ufs rename /Bonjour/OncleG.txt /DansRoot.txt
-# ./ufs ls /Bonjour
-# ./ufs ls /
+ echo
+ echo
+ echo "--------------------------------------------------------------------"
+ echo "                    Tester la commande rmdir"
+ echo "--------------------------------------------------------------------"
+ ./ufs blockfree; N_FREEBLOCK=$?;
+ ./ufs rmdir /rep
+ ./ufs ls /
+ let "N_FREEBLOCK=$N_FREEBLOCK+1"
+ echo -e "\nDoit afficher $N_FREEBLOCK blocs de libre, car le fichier répertoire a été libéré:"
+ ./ufs blockfree
+ echo -e "\nDoit échouer avec -3, car /doc n'est pas vide:."
+ ./ufs rmdir /doc
+ ./ufs ls /
+ echo -e "\nDoit échouer avec -3, car /doc/tmp n'est pas vide:"
+ ./ufs rmdir /doc/tmp
+
+ echo
+ echo
+ echo "--------------------------------------------------------------------"
+ echo "              Tester la création d'un fichier vide"
+ echo "--------------------------------------------------------------------"
+ ./ufs create /Doge.wow
+ ./ufs ls /
+ ./ufs create /doc/tmp/new.txt
+ ./ufs ls /
+ ./ufs ls /doc/tmp
+
+ echo
+ echo
+ echo "--------------------------------------------------------------------"
+ echo "          Tester la fonction rename sur fichier ordinaire"
+ echo "--------------------------------------------------------------------"
+ ./ufs rename /Bonjour/LesAmis.txt /Bonjour/OncleG.txt
+ ./ufs ls /Bonjour
+ ./ufs rename /Bonjour/OncleG.txt /DansRoot.txt
+ ./ufs ls /Bonjour
+ ./ufs ls /
 #
 # echo
 # echo
@@ -250,21 +250,19 @@ echo -e "\nDoit échouer avec -1, car hlnb.txt n'est pas un lien symbolique:"
 # ./ufs ls /Bonjour
 # ./ufs ls /
 #
-# echo
-# echo
-# echo "--------------------------------------------------------------------"
-# echo "            Tester la fonction rename sur répertoire"
-# echo "--------------------------------------------------------------------"
-# ./ufs ls /Bonjour
-# ./ufs ls /doc
-# ./ufs rename /doc/tmp /Bonjour/tmpmv
-# echo -e "\nOn vérifie que le nombre de lien pour /Bonjour augmente de 1 et qu'il diminue de 1 pour /doc:"
-# ./ufs ls /
-# echo -e "\nOn vérifie que le sous-réperoire tmpmv contient encore subtmp et new.txt:"
-# ./ufs ls /Bonjour/tmpmv
-# echo -e "\nOn vérifie que le nombre de lien vers ce même répertoire n'augmente pas si on répète l'opération:"
-# ./ufs rename /Bonjour/tmpmv /Bonjour/tmpmv2
-# ./ufs rename /Bonjour/tmpmv2 /Bonjour/tmpmv3
-# ./ufs ls /Bonjour
-#
-#
+ echo
+ echo
+ echo "--------------------------------------------------------------------"
+ echo "            Tester la fonction rename sur répertoire"
+ echo "--------------------------------------------------------------------"
+ ./ufs ls /Bonjour
+ ./ufs ls /doc
+ ./ufs rename /doc/tmp /Bonjour/tmpmv
+ echo -e "\nOn vérifie que le nombre de lien pour /Bonjour augmente de 1 et qu'il diminue de 1 pour /doc:"
+ ./ufs ls /
+ echo -e "\nOn vérifie que le sous-réperoire tmpmv contient encore subtmp et new.txt:"
+ ./ufs ls /Bonjour/tmpmv
+ echo -e "\nOn vérifie que le nombre de lien vers ce même répertoire n'augmente pas si on répète l'opération:"
+ ./ufs rename /Bonjour/tmpmv /Bonjour/tmpmv2
+ ./ufs rename /Bonjour/tmpmv2 /Bonjour/tmpmv3
+ ./ufs ls /Bonjour
