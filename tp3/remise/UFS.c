@@ -565,13 +565,13 @@ sur lequel ce lien symbolique pointe. Cette fonction permettra ainsi au système
 montée dans Linux, de déréférencer les liens symboliques. Si le fichier pPathLien n’existe pas ou qu’il
 n’est pas un lien symbolique, retournez -1. Sinon, retournez le nombre de caractères lus. */
 int bd_readlink(const char *pPathLien, char *pBuffer, int sizeBuffer) {
-	// TODO: test
 	ino iNodeNum = getFileINodeNumFromPath(pPathLien);
 	iNodeEntry iNode;
 
 	if (iNodeNum == -1) return -1;							// Le fichier pPathLien est inexistant
 	if (getINodeEntry(iNodeNum, &iNode) != 0)  return -1; 	// Le fichier pPathLien est inexistant
-	if (!(iNode.iNodeStat.st_mode & G_IFDIR)) return -1; 	// Le fichier pPathLien n'est pas un lien symbolique
+	if (!(iNode.iNodeStat.st_mode & G_IFREG)) return -1; 	// Le fichier pPathLien n'est pas un lien symbolique
+	if (!(iNode.iNodeStat.st_mode & G_IFLNK)) return -1; 	// Le fichier pPathLien n'est pas un lien symbolique
 
 	char fileDataBlock[BLOCK_SIZE];
 	ReadBlock(iNode.Block[0], fileDataBlock);
