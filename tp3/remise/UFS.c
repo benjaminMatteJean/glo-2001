@@ -496,16 +496,21 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 
 	// Write de l'offset voulu jusqu'au nombre de numbytes.
 	for (i = offset; i < (offset + numbytes) && i <= BLOCK_SIZE && cpt <= numbytes; i++) {
+		printf("%c-%c\n",newBuffer[i],buffer[cpt]);
 		if(newBuffer[i] != buffer[cpt]) {
 			newBuffer[i] = buffer[cpt];
 			octets++;
 		}
 		cpt++;
 	}
+	printf("%d\n", cpt);
+	printf("Buffer: %s\n", newBuffer);
 
 	// Écrire la nouvelle valeur du block
 	WriteBlock(fileInode.Block[0] , newBuffer);
+	printf("%d\n", offset + octets > fileInode.iNodeStat.st_size);
 	if(offset + octets > fileInode.iNodeStat.st_size) {
+		printf("%d\n", octets);
 		fileInode.iNodeStat.st_size = offset + octets;
 	}
 
@@ -790,9 +795,40 @@ la commande ./ufs read /slnb.txt 0 40 , cette lecture retournera /b.txt et non p
 de b.txt . La commande suivante bd_readlink sera utilisée par le système d’exploitation pour faire le
 déréférencement du lien symbolique, plus tard quand nous allons le monter dans Linux avec FUSE. */
 int bd_symlink(const char *pPathExistant, const char *pPathNouveauLien) {
-	// TODO à compléter
-	return -1; // Le répertoire qui va contenir le lien spécifié par pPathNouveauLien est inexistant
-	return -2; // Si le fichier pPathNouveauLien existe déjà
+	ino inoFile = getFileINodeNumFromPath(pPathExistant);
+	char destinationDir[BLOCK_SIZE];
+	char filenameDest[BLOCK_SIZE];
+	iNodeEntry newSymlinkInode;
+	iNodeEntry symlinkFileInode;
+
+	if(GetDirFromPath(pPathNouveauLien, destinationDir) == 0) return -1;
+	if(GetFilenameFromPath(pPathNouveauLien, filenameDest) == 0) return -1;
+
+	ino newSymlinkIno = getFileINodeNumFromPath(pPathNouveauLien);
+	if(getINodeEntry(newSymlinkIno, &newSymlinkInode) == 0) return -2;
+
+	bd_create(pPathNouveauLien);
+	newSymlinkIno = getFileINodeNumFromPath(pPathNouveauLien);
+	if(getINodeEntry(newSymlinkIno, &newSymlinkInode) != 0) return -1;
+
+	getINodeEntry(inoFile, &symlinkFileInode);
+
+	newSymlinkInode.iNodeStat.st_mode |= G_IFLNK | G_IFREG;
+	writeINodeOnDisk(&newSymlinkInode);
+
+	int sizeFile = symlinkFileInode.iNodeStat.st_size;
+
+	char buffer[BLOCK_SIZE];
+
+	int read = bd_read(pPathExistant,buffer, 0,sizeFile);
+	printf("%d\n", read);
+	printf("%s\n", buffer);
+	printf("%d\n", sizeFile);
+
+	int octects = bd_write(pPathNouveauLien, buffer,0,sizeFile);
+
+	printf("%d\n", octects);
+
 	return 0; // En cas de succès
 }
 
