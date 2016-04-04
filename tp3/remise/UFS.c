@@ -503,14 +503,9 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 		}
 		cpt++;
 	}
-	printf("%d\n", cpt);
-	printf("Buffer: %s\n", newBuffer);
-
 	// Écrire la nouvelle valeur du block
 	WriteBlock(fileInode.Block[0] , newBuffer);
-	printf("%d\n", offset + octets > fileInode.iNodeStat.st_size);
 	if(offset + octets > fileInode.iNodeStat.st_size) {
-		printf("%d\n", octets);
 		fileInode.iNodeStat.st_size = offset + octets;
 	}
 
@@ -816,18 +811,8 @@ int bd_symlink(const char *pPathExistant, const char *pPathNouveauLien) {
 	newSymlinkInode.iNodeStat.st_mode |= G_IFLNK | G_IFREG;
 	writeINodeOnDisk(&newSymlinkInode);
 
-	int sizeFile = symlinkFileInode.iNodeStat.st_size;
+ 	bd_write(pPathNouveauLien, pPathExistant,0,strlen(pPathExistant));
 
-	char buffer[BLOCK_SIZE];
-
-	int read = bd_read(pPathExistant,buffer, 0,sizeFile);
-	printf("%d\n", read);
-	printf("%s\n", buffer);
-	printf("%d\n", sizeFile);
-
-	int octects = bd_write(pPathNouveauLien, buffer,0,sizeFile);
-
-	printf("%d\n", octects);
 
 	return 0; // En cas de succès
 }
