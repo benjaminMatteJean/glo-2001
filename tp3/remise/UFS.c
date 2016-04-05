@@ -352,8 +352,6 @@ int bd_create(const char *pFilename) {
 
 
 	iNodeEntry pInodeDir;
-	DirEntry *pDirEntry;
-	char block[BLOCK_SIZE];
 	getINodeEntry(dirInode, &pInodeDir);
 
 	addDirEntryInDir(&pInodeDir, fileInode, strFile);
@@ -464,7 +462,6 @@ devez quand même écrire le plus possible dans le fichier, jusqu’à atteindre
 fonction retournera ce nombre d’octet écrit.
 N’oubliez-pas de modifier la taille du fichier st_size . */
 int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) {
-	int octetsWrite = 0;
 	iNodeEntry fileInode;
 	ino filenameIno = getFileINodeNumFromPath(pFilename);
 	if(filenameIno == -1) return -1; // Il n'existe pas.
@@ -496,7 +493,6 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 
 	// Write de l'offset voulu jusqu'au nombre de numbytes.
 	for (i = offset; i < (offset + numbytes) && i <= BLOCK_SIZE && cpt <= numbytes; i++) {
-		printf("%c-%c\n",newBuffer[i],buffer[cpt]);
 		if(newBuffer[i] != buffer[cpt]) {
 			newBuffer[i] = buffer[cpt];
 			octets++;
