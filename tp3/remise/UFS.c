@@ -474,7 +474,7 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 	if(fileInode.iNodeStat.st_mode & G_IFDIR) return -2;
 	if(fileInode.iNodeStat.st_size < offset &&  offset >= N_BLOCK_PER_INODE*BLOCK_SIZE) return -4;
 	if(fileInode.iNodeStat.st_size < offset) return -3;
-	if(fileInode.iNodeStat.st_size == 0 && numbytes > 0) {
+	if(fileInode.iNodeStat.st_size == 0 && numbytes > 0 && fileInode.iNodeStat.st_blocks == 0) {
 		int blockNum = seizeFreeBlock();
 		if(blockNum == -1) return 0; // On fait quoi avec plus de block disponible.
 		fileInode.Block[0] = blockNum;
