@@ -272,15 +272,19 @@ void removeDirEntryInDir(iNodeEntry * iNodeDir , ino inoToDelete) {
 
 	DirEntry * pDirEntry = (DirEntry *) block;
 	int findIndicator = 0;
-	int i;
+	int i = 0;
 	int count = NumberofDirEntry(size_inode);
-	for (i = 0; i < count; i++) {
+	while (i < count) {
 		if (pDirEntry[i].iNode == inoToDelete) {
 			findIndicator = 1;
 		}
 		if (findIndicator == 1) {
 			pDirEntry[i] = pDirEntry[i + 1];
 		}
+		i++;
+	}
+	for (i = 0; i < count; i++) {
+
 	}
 	WriteBlock(blockNum, block);
 }
