@@ -1,42 +1,97 @@
 #!/bin/bash
 
-echo "Deplacement vers le répertoire temporaire"
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Deplacement vers le répertoire temporaire"
+echo "--------------------------------------------------------------------"
 cd /tmp/glo
 
-echo "----- Test de la commande ls -----"
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande ls"
+echo "--------------------------------------------------------------------"
 ls
-echo "----- Test de la commande ls -la -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande ls -la"
+echo "--------------------------------------------------------------------"
 ls –la
-echo "----- Test de la commande ls -i -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande ls -i"
+echo "--------------------------------------------------------------------"
 ls -i
-echo "----- Test de la commande mkdir -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande mkdir"
+echo "--------------------------------------------------------------------"
 mkdir test
 ls
-echo "----- Test de la commande mv -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande mv"
+echo "--------------------------------------------------------------------"
 mv b.txt test
 ls test
-echo "----- Test de la commande touch -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande touch"
+echo "--------------------------------------------------------------------"
+echo "-----  -----"
 touch test/b.txt
-echo "----- Test de la commande ln -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande ln"
+echo "--------------------------------------------------------------------"
 ln Bonjour/LesAmis.txt
-ls
-echo "----- Test de la commande rmdir -----"
+ls -la
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande rmdir"
+echo "--------------------------------------------------------------------"
 rmdir test
 mkdir test2
 ls
 rmdir test2
 ls
-echo "----- Test de la commande cd -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande cd"
+echo "--------------------------------------------------------------------"
 cd doc
 ls
 cd ..
-echo "----- Test de la commande cp -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande cp"
+echo "--------------------------------------------------------------------"
 cp Bonjour/LesAmis.txt test/
 ls test/
-echo "----- Test de la commande more -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande more"
+echo "--------------------------------------------------------------------"
 more symlinkb.txt
-echo "----- Test de la commande ls -s -----"
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande ls -s"
+echo "--------------------------------------------------------------------"
 ln -s test/b.txt symlinkb.txt
-ls
-echo "----- Test de la commande gedit -----"
+ls -la
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande gedit"
+echo "--------------------------------------------------------------------"
 gedit symlinkb.txt
