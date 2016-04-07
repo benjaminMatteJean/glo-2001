@@ -26,12 +26,15 @@ mkdir test2
 rmdir test2
 echo "----- Test de la commande cd -----"
 cd doc
+ls
 cd ..
 echo "----- Test de la commande cp -----"
 cp Bonjour/LesAmis.txt test/
+ls test/
 echo "----- Test de la commande gedit -----"
 gedit symlinkb.txt
 echo "----- Test de la commande more -----"
 more symlinkb.txt
 echo "----- Test de la commande ls -s -----"
 ln -s test/b.txt symlinkb.txt
+ls

@@ -17,4 +17,4 @@ echo "--- Création du dossier temporaire -----"
 mkdir /tmp/glo
 
 echo "--- Partir le système de fichier -----"
-./glos /tmp/glo -f -ouse_ino
+./glofs /tmp/glo -f -ouse_ino
