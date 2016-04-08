@@ -31,4 +31,6 @@ echo
 echo "--------------------------------------------------------------------"
 echo "                     Partir le système de fichier"
 echo "--------------------------------------------------------------------"
+echo
+echo "Faire Ctrl+C pour arrêter le système de fichier."
 ./glofs /tmp/glo -f -ouse_ino
