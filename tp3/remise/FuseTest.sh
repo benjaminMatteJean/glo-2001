@@ -91,10 +91,11 @@ more symlinkb.txt
 
 echo
 echo "--------------------------------------------------------------------"
-echo "                     Test de la commande ls -s"
+echo "                     Test de la commande ln -s"
 echo "--------------------------------------------------------------------"
 echo
-echo "Création d'un lien symbolique du fichier test/b.txt dans le répertoire root avec le nom symlinkb.txt"
+echo "Création d'un lien symbolique du fichier test/b.txt dans"
+echo " le répertoire root avec le nom symlinkb.txt"
 ln -s test/b.txt symlinkb.txt
 ls -la
 
@@ -102,7 +103,7 @@ echo
 echo "--------------------------------------------------------------------"
 echo "                     Test de la commande ls -la"
 echo "--------------------------------------------------------------------"
-ls –la
+ls -la
 
 echo
 echo "--------------------------------------------------------------------"
