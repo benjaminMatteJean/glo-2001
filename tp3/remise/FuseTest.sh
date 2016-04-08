@@ -56,7 +56,8 @@ echo "--------------------------------------------------------------------"
 echo "                     Test de la commande rmdir"
 echo "--------------------------------------------------------------------"
 echo
-echo "Test de suppresion du répertoire test, mais il devrait avoir une erreur"
+echo "Test de suppresion du répertoire test, mais il devrait"
+echo " avoir une erreur"
 rmdir test
 echo
 echo "Création d'un répertoire test2"
@@ -70,8 +71,9 @@ echo
 echo "--------------------------------------------------------------------"
 echo "                     Test de la commande cd"
 echo "--------------------------------------------------------------------"
+ls -l
 cd doc
-ls
+ls -l
 cd ..
 
 echo
@@ -110,3 +112,4 @@ echo "--------------------------------------------------------------------"
 echo "                     Test de la commande gedit"
 echo "--------------------------------------------------------------------"
 gedit symlinkb.txt
+echo "Une fenêtre de gedit devrait ouvrir"
