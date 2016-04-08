@@ -110,13 +110,6 @@ ls test/
 
 echo
 echo "--------------------------------------------------------------------"
-echo "                     Test de la commande more"
-echo "--------------------------------------------------------------------"
-echo "more symlinkb.txt"
-more symlinkb.txt
-
-echo
-echo "--------------------------------------------------------------------"
 echo "                     Test de la commande ln -s"
 echo "--------------------------------------------------------------------"
 echo
@@ -126,6 +119,13 @@ echo "ln -s test/b.txt symlinkb.txt"
 ln -s test/b.txt symlinkb.txt
 echo "ls -la"
 ls -la
+
+echo
+echo "--------------------------------------------------------------------"
+echo "                     Test de la commande more"
+echo "--------------------------------------------------------------------"
+echo "more symlinkb.txt"
+more symlinkb.txt
 
 echo
 echo "--------------------------------------------------------------------"
