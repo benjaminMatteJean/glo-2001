@@ -10,7 +10,7 @@ ufs_complet: UFS_remise.o main_ufs.o DisqueStegano.o lodepng.o
 TestsUnitaires : UFS.o TestsUnitaires.o DisqueStegano.o lodepng.o
 	gcc TestsUnitaires.o UFS.o DisqueStegano.o lodepng.o -o TestsUnitaires
 
-ufs: UFS.o main_ufs.o DisqueStegano.o lodepng.o image
+ufs: UFS.o main_ufs.o DisqueStegano.o lodepng.o
 	gcc main_ufs.o UFS.o DisqueStegano.o lodepng.o  -g -o ufs
 
 glofs: glofs.c UFS.o DisqueStegano.o
@@ -40,8 +40,5 @@ DisqueStegano.o: DisqueStegano.c
 lodepng.o: lodepng.c lodepng.h
 	gcc -g -c lodepng.c -o lodepng.o
 
-image: google-go.png.orig
-	cp google-go.png.orig google-go.png
-
 clean:
-	rm -f *.o ufs google-go.png ufsTest glofs prompt TestsUnitaires TestDisqueStegano *.*~
+	rm -f *.o ufs ufsTest glofs prompt TestsUnitaires TestDisqueStegano *.*~
